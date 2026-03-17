@@ -1,0 +1,331 @@
+import os
+import json
+from PyQt6.QtWidgets import *
+from PyQt6.QtGui import *
+from PyQt6.QtCore import *
+
+
+def createLayout(spacing, margins, direction):
+    if direction == "vertical":
+        layout = QVBoxLayout()
+    else:
+        layout = QHBoxLayout()
+    layout.setSpacing(spacing)
+    layout.setContentsMargins(*margins)
+    return layout
+
+def createButton(text, width, height, icon_path=None):
+    btn = QPushButton(text)
+    btn.setFixedWidth(width)
+    btn.setFixedHeight(height)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    if icon_path:
+        btn.setIcon(QIcon(icon_path))
+        btn.setIconSize(QSize(22, 22))
+    return btn
+
+def createLabel(text, size, bold):
+    label = QLabel(text)
+    weight = QFont.Weight.Bold if bold else QFont.Weight.Normal
+    label.setFont(QFont("Consolas", size, weight))
+    return label
+
+def createPixmap(path, width, height):
+    icon = QLabel()
+    pixmap = QPixmap(path).scaled(
+        width, height, Qt.AspectRatioMode.KeepAspectRatio,
+        Qt.TransformationMode.SmoothTransformation
+    )
+    icon.setPixmap(pixmap)
+    return icon
+
+def createContainer(spacing):
+    container = QWidget()
+    container_layout = QVBoxLayout(container)
+    container_layout.setSpacing(spacing)
+    container_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+    return container, container_layout
+
+class Stepper(QWidget):
+    def __init__(self, pasos):
+        super().__init__()
+        self.pasos = pasos
+        self.paso_actual = 0
+        self.setFixedHeight(80)
+
+    def avanzar(self, paso):
+        self.paso_actual = paso
+        self.update()  # redibuja
+
+    def retroceder(self, paso):
+        self.paso_actual = max(0, self.paso_actual - paso)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        total = len(self.pasos)
+        w = self.width()
+        h = self.height()
+        paso_w = w // total
+        radio = 16
+
+        COLOR_ACTIVO    = QColor("#e68200")
+        COLOR_COMPLETO  = QColor("#b36500")
+        COLOR_PENDIENTE = QColor("#555555")
+        COLOR_TEXTO     = QColor("#ffffff")
+
+        for i in range(total):
+            cx = paso_w * i + paso_w // 2
+            cy = h // 2 - 10
+
+            # Línea conectora
+            # Línea conectora
+            if i < total - 1:
+                next_cx = paso_w * (i + 1) + paso_w // 2
+
+                if i + 1 <= self.paso_actual:
+                    # Línea completa rellena
+                    painter.setPen(QPen(COLOR_ACTIVO, 3))
+                else:
+                    # Línea pendiente
+                    painter.setPen(QPen(COLOR_PENDIENTE, 3))
+                
+                painter.drawLine(cx + radio, cy, next_cx - radio, cy)
+
+            # Círculo
+            if i < self.paso_actual:
+                color = COLOR_COMPLETO
+            elif i == self.paso_actual:
+                color = COLOR_ACTIVO
+            else:
+                color = COLOR_PENDIENTE
+
+            painter.setBrush(QBrush(color))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(cx - radio, cy - radio, radio * 2, radio * 2)
+
+            # Número
+            painter.setPen(QPen(COLOR_TEXTO))
+            painter.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+            painter.drawText(cx - radio, cy - radio, radio * 2, radio * 2,
+                            Qt.AlignmentFlag.AlignCenter, str(i + 1))
+
+            # Texto debajo
+            if i == self.paso_actual:
+                painter.setFont(QFont("Consolas", 8))
+                painter.drawText(
+                    cx - paso_w // 2, cy + radio + 4, paso_w, 40,
+                    Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+                    self.pasos[i]
+                )
+
+class FileInput(QWidget):
+    archivos_cargados = pyqtSignal(list)  # emite lista de rutas
+
+    # Configuro el fileInput con tipos de archivos permitidos y si acepta multiples o no
+    def __init__(self, placeholder="Arrastrá archivos o hacé click para buscar", tipos=None, multiple=False):
+        super().__init__()
+        self.tipos = tipos
+        self.rutas = []
+        self.multiple = multiple
+        self.setAcceptDrops(True)
+        self.setMinimumHeight(80)  # mínimo en vez de fijo, para que crezca
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.label = QLabel(placeholder)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setWordWrap(True)
+
+        self.layout_archivos = QVBoxLayout()
+        self.layout_archivos.addWidget(self.label)
+        self.setLayout(self.layout_archivos)
+
+        self._aplicar_estilo_normal()
+
+    def mousePressEvent(self, event):
+        filtro = ""
+        if self.tipos:
+            exts = " ".join(f"*.{t}" for t in self.tipos)
+            filtro = f"Archivos ({exts})"
+
+        if self.multiple:
+            paths, _ = QFileDialog.getOpenFileNames(self, "Seleccionar archivos", "", filtro)
+        else:
+            path, _ = QFileDialog.getOpenFileName(self, "Seleccionar archivo", "", filtro)
+            paths = [path] if path else []
+
+        if paths:
+            self._setArchivos(paths)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self._aplicar_estilo_hover()
+
+    def dragLeaveEvent(self, event):
+        self._aplicar_estilo_normal()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        if urls:
+            paths = [u.toLocalFile() for u in urls]
+            if not self.multiple:
+                paths = paths[:1]
+            self._setArchivos(paths)
+        self._aplicar_estilo_normal()
+
+    def _setArchivos(self, paths):
+        self.rutas = paths
+
+        # Limpiar widgets anteriores
+        while self.layout_archivos.count():
+            item = self.layout_archivos.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if len(paths) == 1:
+            lbl = QLabel(f"📄 {os.path.basename(paths[0])}")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.layout_archivos.addWidget(lbl)
+        else:
+            for path in paths:
+                lbl = QLabel(f"📄 {os.path.basename(path)}")
+                lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.layout_archivos.addWidget(lbl)
+
+        self.archivos_cargados.emit(self.rutas)
+
+    def _aplicar_estilo_normal(self):
+        self.setStyleSheet("""
+            QWidget { border: 2px dashed #666; border-radius: 6px; background-color: #2d2d2d; }
+            QWidget:hover { border-color: #e68200; }
+        """)
+
+    def _aplicar_estilo_hover(self):
+        self.setStyleSheet("""
+            QWidget { border: 2px dashed #e68200; border-radius: 6px; background-color: #3a3000; }
+        """)
+
+class JsonEditor(QWidget):
+    def __init__(self, ruta_txt):
+        super().__init__()
+        self.ruta_txt = ruta_txt
+        self.campos = {}  # path completo -> QLineEdit
+
+        with open(ruta_txt, "r", encoding="utf-8") as f:
+            self.data = json.load(f)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self._construirCampos(self.data, layout)
+
+        btn_guardar = createButton("Guardar cambios", 160, 32)
+        btn_guardar.clicked.connect(self.guardar)
+        layout.addWidget(btn_guardar, alignment=Qt.AlignmentFlag.AlignRight)
+
+    def _construirCampos(self, data, layout, prefijo="", nivel=0):
+        for key, value in data.items():
+            path = f"{prefijo}.{key}" if prefijo else key
+
+            if isinstance(value, dict):
+                # Título de sección
+                titulo = QLabel(f"{'  ' * nivel}▶ {key}")
+                titulo.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+                titulo.setStyleSheet("color: #e68200;")
+                layout.addWidget(titulo)
+
+                # Recursivo
+                self._construirCampos(value, layout, prefijo=path, nivel=nivel+1)
+
+            else:
+                fila = QHBoxLayout()
+
+                label = QLabel(f"{'  ' * nivel}{key}")
+                label.setFixedWidth(200)
+                label.setFont(QFont("Consolas", 9))
+
+                input_widget = self._crearInput(value)
+                self.campos[path] = input_widget
+
+                fila.addWidget(label)
+                fila.addWidget(input_widget)    
+                layout.addLayout(fila)
+
+    UMBRAL_LARGO = 60  # caracteres
+
+    def _crearInput(self, valor):
+        texto = str(valor)
+        if isinstance(valor, (list, dict)) or len(texto) > self.UMBRAL_LARGO:
+            input_widget = QTextEdit()
+            input_widget.setPlainText(texto)
+            input_widget.setStyleSheet("background-color: #2d2d2d; color: white; border: 1px solid #555;")
+            # Agregá .text = input_widget.toPlainText para unificar la interfaz
+            input_widget.text = input_widget.toPlainText
+
+            input_widget.document().adjustSize()
+            alto = int(input_widget.document().size().height()) + 20  # +20 de padding
+            input_widget.setFixedHeight(max(60, min(alto, 300)))
+
+        else:
+            input_widget = QLineEdit(texto)
+            input_widget.setStyleSheet("background-color: #2d2d2d; color: white; border: 1px solid #555;")
+        return input_widget
+
+    def _setValor(self, data, keys, valor, valor_original):
+        for key in keys[:-1]:
+            data = data[key]
+        
+        ultimo = keys[-1]
+        try:
+            if isinstance(valor_original, int):
+                data[ultimo] = int(valor)
+            elif isinstance(valor_original, float):
+                data[ultimo] = float(valor)
+            elif isinstance(valor_original, (list, dict)):
+                # Si el original era lista o dict, parsear con ast
+                import ast
+                data[ultimo] = ast.literal_eval(valor)
+            else:
+                data[ultimo] = valor
+        except (ValueError, SyntaxError):
+            data[ultimo] = valor
+
+    def _getValorOriginal(self, data, keys):
+        """Obtiene el valor original para saber el tipo"""
+        for key in keys:
+            data = data[key]
+        return data
+
+    def guardar(self):
+        for path, input_widget in self.campos.items():
+            keys = path.split(".")
+            valor_original = self._getValorOriginal(self.data, keys)
+            self._setValor(self.data, keys, input_widget.text(), valor_original)
+
+        with open(self.ruta_txt, "w", encoding="utf-8") as f:
+            json.dump(self.data, f, indent=4, ensure_ascii=False)
+
+        QMessageBox.information(self, "Guardado", "Cambios guardados correctamente")
+
+def createHeader(self, pantalla_anterior=None):
+    header_layout = QHBoxLayout()
+    header_layout.setContentsMargins(0, 0, 0, 0)
+    header_layout.setSpacing(12)
+
+    if pantalla_anterior:
+        backButton = createButton("← Volver", 90, 28)
+        backButton.clicked.connect(lambda: self.volver(pantalla_anterior))
+        backButton.setStyleSheet("""
+            QPushButton {background: transparent; border: none; color: #aaa; font-size: 13px;}
+            QPushButton:hover {color: #e68200;}
+        """)
+        header_layout.addWidget(backButton, alignment=Qt.AlignmentFlag.AlignVCenter)
+    
+    header_layout.addWidget(self.stepper)
+
+    header_widget = QWidget()
+    header_widget.setLayout(header_layout)
+    return header_widget
