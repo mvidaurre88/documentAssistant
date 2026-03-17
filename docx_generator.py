@@ -27,7 +27,7 @@ def crear_subdoc_fase(tpl, fase):
 
 def generate_docx():
 
-    tpl = DocxTemplate(r"C:\Users\mvidaurre\Desktop\RPA\templatePDD.docx")  # <-- adentro
+    tpl = DocxTemplate(r"C:\Users\mvidaurre\Desktop\RPA\DocumentationAssistant\templatePDD.docx")  # <-- adentro
     fecha = date.today().strftime("%d/%m/%Y")
 
     excepcionesSys_raw = [

@@ -3,6 +3,7 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
+from narwhals import col
 from builder import *
 from docx_generator import *
 
@@ -15,7 +16,7 @@ class mainWindow(QMainWindow):
         # Nombre de la ventana, icono y tamaño
         self.setWindowTitle("IA Documentation Assistant")
         self.setWindowIcon(QIcon(os.path.join(BASE_DIR,"icons", "icon.ico")))
-        self.setMinimumSize(750, 500)
+        self.setMinimumSize(750, 600)
         self.initWindow()
 
     def initWindow(self):
@@ -37,9 +38,7 @@ class mainWindow(QMainWindow):
         # Stepper para proximas etapas
         self.stepper = Stepper(["Inicio", "Cargar datos", "Generar archivo", "Verificar datos", "Fin"])
 
-        layout.addWidget(icono)
-        layout.addWidget(titulo)
-        layout.addWidget(btn_comenzar, alignment=Qt.AlignmentFlag.AlignCenter)
+        agregar_elementos(layout, (icono, 20), (titulo, 20), (btn_comenzar, Qt.AlignmentFlag.AlignCenter, 20))
 
     # Paso 1: elegir tipo de documento
     def selectDocumentType(self):
@@ -47,7 +46,7 @@ class mainWindow(QMainWindow):
         layout = self.initial_config(previous_screen = self.initWindow)
 
         # Titulo
-        titulo = createLabel("Selecciona el tipo de documento a generar", size=18, bold=True)
+        titulo = createLabel("Seleccione el tipo de documento a generar", size=18, bold=True)
         titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Botones para tipos de documento
@@ -66,32 +65,108 @@ class mainWindow(QMainWindow):
         container_layout.addWidget(btn2)
         container_layout.addWidget(btn3)
 
-        layout.addWidget(self.stepper)
-        layout.addWidget(titulo)
-        layout.addWidget(container)
+        agregar_elementos(layout, (titulo, 20), (container, Qt.AlignmentFlag.AlignCenter, 20))
+        layout.addStretch()
 
     # Paso 2: cargar archivos con datos
     def loadFiles(self):
         # Config inicial
-        layout = self.initial_config(previous_screen = self.selectDocumentType)
+        layout = self.initial_config(previous_screen=self.selectDocumentType)
 
         # Avanzo la barra de pasos
         self.stepper.avanzar(1)
 
-        # FileInput que soporta multiples archivos y tipos específicos
-        self.file_input = FileInput(tipos=["docx", "pdf", "txt"], multiple=True)
-        self.file_input.archivos_cargados.connect(lambda rutas: print(rutas))
+        # Titulo y subtitulo
+        title = createLabel("Ingrese los archivos para procesar", size=18, bold=True)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle = createLabel("Puede ingresar screenshots, transcripciones de reuniones, o cualquier otro documento ", size=10, bold=False)
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setStyleSheet("color: #cccccc;")
+
+        self.archivos_container = QWidget()
+        self.archivos_grid = QGridLayout(self.archivos_container)
+        self.archivos_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        
+        for col in range(4):
+            self.archivos_grid.setColumnStretch(col, 1)
+
+        self.scroll_archivos = QScrollArea()
+        self.scroll_archivos.setWidget(self.archivos_container)
+        self.scroll_archivos.setWidgetResizable(True)
+        self.scroll_archivos.setFixedHeight(140)
+        self.scroll_archivos.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.scroll_archivos.setVisible(False)
+
+        self.file_input = FileInput(tipos=["docx", "pdf", "txt", "png"], multiple=True)
+        self.file_input.setFixedHeight(120)  # ← altura fija
+        self.file_input.archivos_cargados.connect(self._actualizarListaArchivos)
 
         btn = createButton("Avanzar paso", 140, 32)
-        btn.clicked.connect(self.connectToAI)
+        btn.clicked.connect(self._validarYAvanzar)
 
-        layout.addWidget(self.stepper)
-        layout.addWidget(self.file_input)
-        layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        QTimer.singleShot(500, lambda: print(
+        f"file_input width: {self.file_input.width()}",
+        f"scroll width: {self.scroll_archivos.width()}",
+        f"archivos_container width: {self.archivos_container.width()}"
+        ))
 
-    def onArchivoSeleccionado(self, ruta):
-        print(f"Archivo cargado: {ruta}")
-        self.ruta_archivo = ruta
+        agregar_elementos(layout, (title, 20), (subtitle, 10), (self.file_input, 20), (self.scroll_archivos, 10),"stretch", (btn, Qt.AlignmentFlag.AlignCenter, 0))
+
+    def _validarYAvanzar(self):
+        if not self.file_input.rutas:
+            QMessageBox.warning(self, "Atención", "Cargá al menos un archivo antes de continuar.")
+            return
+        self.connectToAI()
+
+    def _actualizarListaArchivos(self, rutas):
+        # Limpiar grilla
+        while self.archivos_grid.count():
+            item = self.archivos_grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        self.scroll_archivos.setVisible(len(rutas) > 0)
+
+        COLUMNAS = 4
+
+        for i, ruta in enumerate(rutas):
+            fila = i // COLUMNAS
+            col  = i % COLUMNAS
+
+            card = QWidget()
+            card.setFixedSize(160, 60)
+            card.setStyleSheet("QWidget { background-color: #2d2d2d; border-radius: 6px; }")
+
+            card_layout = QHBoxLayout(card)
+            card_layout.setContentsMargins(8, 6, 6, 6)
+            card_layout.setSpacing(20)
+
+            icono = QLabel("📄")
+            icono.setFixedWidth(20)
+
+            nombre = QLabel(os.path.basename(ruta))
+            nombre.setStyleSheet("color: #ffffff; font-size: 10px;")
+            nombre.setWordWrap(True)
+
+            btn_x = QPushButton("✕")
+            btn_x.setFixedSize(20, 20)
+            btn_x.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_x.setStyleSheet("""
+                QPushButton { background: transparent; border: none; color: #aaa; font-size: 12px; padding: 0px; }
+                QPushButton:hover { color: #e68200; }
+            """)
+            btn_x.clicked.connect(lambda _, r=ruta: self._eliminarArchivo(r))
+
+            card_layout.addWidget(icono)
+            card_layout.addWidget(nombre)
+            card_layout.addStretch()
+            card_layout.addWidget(btn_x)
+
+            self.archivos_grid.addWidget(card, fila, col)
+
+    def _eliminarArchivo(self, ruta):
+        self.file_input.rutas.remove(ruta)
+        self._actualizarListaArchivos(self.file_input.rutas)
 
     # Paso 3: Conectar con la IA para procesar datos
     def connectToAI(self):
@@ -100,6 +175,11 @@ class mainWindow(QMainWindow):
 
         # Avanzo la barra de pasos
         self.stepper.avanzar(2)
+
+        # Muestro archivos cargados (simulando que se envían a la IA)
+        print("Archivos cargados para procesamiento con IA:")
+        for ruta in self.file_input.rutas:
+            print(ruta)
 
         # Animación de carga
         loading_label = QLabel()
@@ -162,7 +242,7 @@ class mainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         # Layout
-        layout = createLayout(spacing=20, margins=(30, 20, 30, 20), direction="vertical")
+        layout = createLayout(spacing=0, margins=(30, 20, 30, 20), direction="vertical")
         if stretch:
             layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         central.setLayout(layout)

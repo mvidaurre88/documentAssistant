@@ -1,0 +1,250 @@
+{
+    "codigoBot": "",
+    "nombreBot": "Bot Auditoría Fotos",
+    "cliente": "",
+    "desarrollador": "Andres RENSIN",
+    "fecha": "17/03/2026",
+    "version": "0.0",
+    "modificaciones": [
+        {
+            "version": "0.0",
+            "fecha": "17/03/2026",
+            "paginas": "todas",
+            "motivo": "creacion de documento",
+            "autor": "Andres RENSIN",
+            "sector": "RPA"
+        }
+    ],
+    "revision": [],
+    "propositoProceso": "Automatizar la auditoría de fotos de instalaciones de medidores mediante RPA e IA. El bot descarga fotos desde Webget, las analiza con inteligencia artificial para detectar anomalías (como dígitos corridos - anomalía 31 - y visor imposible lectura - anomalía 32), genera un informe con los resultados de validación y mantiene una base de datos histórica de los últimos 6 meses para identificar reiteraciones.",
+    "entradas": [
+        "Reporte de visitas y pendientes descargado desde Webget (archivo Excel/XLSV)",
+        "Archivo de parámetros con números y descripciones de anomalías a procesar",
+        "Archivo L31 con última lectura real por instalación",
+        "Fotos de instalaciones descargadas desde Webget (URLs construidas a partir de ruta, porción, periodo y nombre de archivo)",
+        "Archivo flag de control de ejecución en curso",
+        "Base de datos histórica de verificaciones anteriores (últimos 6 meses)",
+        "Archivo manual de instalaciones específicas (opcional, subido a carpeta de input para lotes particulares)"
+    ],
+    "salidas": [
+        "Informe Excel con pestaña principal (datos completos por instalación: anomalía, validación IA, lectura encontrada, nivel de confianza, comentario, presencia de rejas, reiteraciones, última lectura real, centro de lectura UL) y pestaña resumen (resultados acotados: porción, instalación, tipo de anomalía con descripción, carpeta de fotos, reiteraciones, lectura IA, validación, nivel de confianza, comentario, rejas, última fecha y lectura real, UL)",
+        "Carpeta de fotos descargadas organizada por fecha de ejecución y número de instalación",
+        "Actualización de base de datos histórica con las verificaciones realizadas (llave: instalación + anomalía)"
+    ],
+    "carpetaCompartida": "Carpeta compartida mencionada en reunión anterior (utilizada para intercambio de fotos de prueba entre equipo RPA y cliente)",
+    "carpetaOutput": "Carpeta de informes realizados, nombre con número de porción y fecha de ejecución",
+    "carpetaInput": "Carpeta de descargas Webget (visitas y pendientes) y carpeta L31 (siempre contiene solo la última descarga realizada); también carpeta de input para archivos manuales de instalaciones específicas",
+    "contactos": [
+        "Andres RENSIN (desarrollador RPA)",
+        "Martin Alberto Aguilar",
+        "Veronica Gabriela Deschner",
+        "Roberto Cristian Turco",
+        "Jorge Fernando Ferreira",
+        "Maria Paz Fernandez",
+        "Emanuel Iván González Palmer",
+        "Mikita Kovalyov"
+    ],
+    "ejecucion": "Scheduler diario: el bot determina la porción del día en base a la fecha límite de ejecución de la web (un día después de la fecha límite de ejecución del grupo). También puede ejecutarse manualmente subiendo un archivo XLSV de visitas y pendientes a la carpeta de input para procesar lotes particulares fuera del calendario.",
+    "excepciones": [
+        {
+            "numero": "4.2.1",
+            "tipo": "tecnica",
+            "escenario": "Existe un archivo flag en la carpeta de ejecución, indicando que el proceso se interrumpió en una ejecución anterior (corte de luz, caída de SAP, etc.)",
+            "accion": "El bot detecta el flag, identifica el punto donde se interrumpió y retoma la ejecución desde ese punto sin reprocesar lo ya realizado."
+        },
+        {
+            "numero": "4.2.2",
+            "tipo": "tecnica",
+            "escenario": "El reporte solicitado a Webget no tiene estado 'Completada' al momento de la consulta",
+            "accion": "El bot espera 5 minutos y reintenta la verificación del estado. Repite el ciclo hasta un máximo de 12 veces (1 hora total). Si no se completa en ese tiempo, se registra el error."
+        },
+        {
+            "numero": "4.2.3",
+            "tipo": "tecnica",
+            "escenario": "Error durante la descarga de una foto desde Webget (columna de ruta vacía o fallo en la descarga)",
+            "accion": "El bot deja vacía la columna de ruta correspondiente (columna CL). En la siguiente ejecución, al detectar que la columna está vacía, vuelve a intentar la descarga de esa foto."
+        },
+        {
+            "numero": "4.2.4",
+            "tipo": "tecnica",
+            "escenario": "La descarga de fotos se interrumpe a mitad del proceso (cuello de botella estimado en ~600 fotos)",
+            "accion": "El bot detecta el archivo flag de ejecución en curso y reanuda las descargas desde la última foto procesada, evitando redownloads innecesarios."
+        },
+        {
+            "numero": "4.2.5",
+            "tipo": "negocio",
+            "escenario": "La instalación ya fue verificada por la IA en una ejecución anterior dentro de los últimos 6 meses con la misma anomalía",
+            "accion": "El bot procesa igualmente la instalación, registra en el informe que es reiterada, indica la fecha de la verificación anterior y el número de reiteraciones para conocimiento del analista."
+        },
+        {
+            "numero": "4.2.6",
+            "tipo": "negocio",
+            "escenario": "La IA devuelve un resultado con nivel de confianza no alto (bajo)",
+            "accion": "Independientemente del resultado (OK o verificar), el bot fuerza el campo de validación a 'Verificar' para que el analista lo revise manualmente."
+        },
+        {
+            "numero": "4.2.7",
+            "tipo": "negocio",
+            "escenario": "La anomalía detectada en el archivo de visitas y pendientes no está registrada en el archivo de parámetros",
+            "accion": "El bot omite esa instalación y no la procesa, ya que solo procesa las anomalías configuradas en parámetros (actualmente anomalía 31 - dígitos corridos y anomalía 32 - visor imposible lectura)."
+        },
+        {
+            "numero": "4.2.8",
+            "tipo": "negocio",
+            "escenario": "El número de medidor no puede ser identificado por la IA en la foto (chapita ilegible, mala calidad de imagen, reja obstruyendo)",
+            "accion": "La IA indica en el comentario que no pudo encontrar el número de medidor, especificando el motivo. El resultado no se invalida automáticamente; se evalúa en conjunto con los demás campos de validación."
+        }
+    ],
+    "fases": [
+        {
+            "tituloFase": "Inicialización y validación de parámetros",
+            "pasos": [
+                {
+                    "accion": "Verificar archivo flag de ejecución",
+                    "detalle": "El bot verifica si existe un archivo flag en la carpeta de ejecución. Si existe, significa que hay una ejecución previa interrumpida y el bot retoma desde el punto de corte. Si no existe, continúa con el flujo normal.",
+                    "excepcion_escenario": "Existe un archivo flag en la carpeta de ejecución, indicando que el proceso se interrumpió en una ejecución anterior (corte de luz, caída de SAP, etc.)"
+                },
+                {
+                    "accion": "Determinar porción del día",
+                    "detalle": "El bot determina la porción a procesar en base a la fecha actual. Toma las porciones cuya fecha límite de ejecución (fecha SAP + 3 días) sea igual al día anterior al de la ejecución, garantizando que el grupo esté completamente cerrado.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Verificar archivo de input manual",
+                    "detalle": "El bot verifica si existe un archivo XLSV de visitas y pendientes subido manualmente en la carpeta de input. Si lo encuentra, utiliza ese archivo para procesar un lote específico de instalaciones. Si no lo encuentra, continúa por el camino del calendario automático.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Validar archivo de parámetros",
+                    "detalle": "El bot revisa el archivo de parámetros para verificar que las anomalías a procesar estén correctamente configuradas (número de anomalía y descripción breve). Solo se procesarán las anomalías registradas en este archivo.",
+                    "excepcion_escenario": "La anomalía detectada en el archivo de visitas y pendientes no está registrada en el archivo de parámetros"
+                },
+                {
+                    "accion": "Copiar y renombrar archivo de trabajo",
+                    "detalle": "El bot copia el archivo de visitas y pendientes en la carpeta correspondiente a la ejecución actual, nombrándolo con el número de porción, fecha y hora de ejecución.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Limpiar carpetas de descargas temporales",
+                    "detalle": "El bot elimina el contenido de las carpetas de descarga de Webget y L31, ya que estas carpetas siempre deben contener únicamente los archivos de la última ejecución realizada.",
+                    "excepcion_escenario": ""
+                }
+            ]
+        },
+        {
+            "tituloFase": "Descarga del reporte de Webget (Visitas y Pendientes)",
+            "pasos": [
+                {
+                    "accion": "Ingresar a Webget y solicitar reporte",
+                    "detalle": "El bot ingresa al portal Webget, navega a la sección de solicitud de reportes y solicita el reporte 'Visitas y Pendientes'. Completa la descripción con el texto 'Bot Audi Fotos' seguido de fecha y hora. Selecciona como fecha desde y fecha hasta un rango de ±15 días respecto a la fecha actual. Selecciona las porciones correspondientes al día.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Verificar estado del reporte solicitado",
+                    "detalle": "El bot busca el reporte en el bucket de descarga usando la descripción ingresada y verifica que el estado sea 'Completada'. Si no está completada, espera 5 minutos y reintenta, hasta un máximo de 12 intentos (1 hora total).",
+                    "excepcion_escenario": "El reporte solicitado a Webget no tiene estado 'Completada' al momento de la consulta"
+                },
+                {
+                    "accion": "Descargar y guardar reporte",
+                    "detalle": "Una vez que el estado es 'Completada', el bot borra la carpeta de descargas previa, descarga el archivo y lo guarda en la carpeta 'Descargas Webget'.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Copiar reporte a pestaña de visitas y pendientes",
+                    "detalle": "El bot copia el contenido del archivo descargado a la pestaña 'Visitas y Pendientes' del archivo de trabajo principal.",
+                    "excepcion_escenario": ""
+                }
+            ]
+        },
+        {
+            "tituloFase": "Filtrado y preparación de instalaciones a procesar",
+            "pasos": [
+                {
+                    "accion": "Filtrar instalaciones por tipo de anomalía",
+                    "detalle": "El bot compara las anomalías del reporte de visitas y pendientes contra el archivo de parámetros. Solo selecciona las filas cuya anomalía esté registrada en parámetros (actualmente anomalías 31 y 32). Las columnas en uso principal son: porción, ruta, periodo, instalación, número de serie, dígitos (esferas), anomalía, lectura actual, consumo y observaciones.",
+                    "excepcion_escenario": "La anomalía detectada en el archivo de visitas y pendientes no está registrada en el archivo de parámetros"
+                },
+                {
+                    "accion": "Verificar historial de la base de datos",
+                    "detalle": "El bot consulta la base de datos histórica de los últimos 6 meses. Para cada instalación+anomalía (llave compuesta), verifica si ya fue procesada anteriormente. Si fue procesada, registra el número de reiteraciones y la fecha de la última verificación para incluirla en el informe.",
+                    "excepcion_escenario": "La instalación ya fue verificada por la IA en una ejecución anterior dentro de los últimos 6 meses con la misma anomalía"
+                },
+                {
+                    "accion": "Generar URLs de fotos",
+                    "detalle": "El bot construye las URLs de acceso a las fotos de cada instalación usando los campos: ruta, porción, periodo y nombre de archivo. No requiere el campo 'Path Photo' del reporte ya que la URL se puede construir con estos datos.",
+                    "excepcion_escenario": ""
+                }
+            ]
+        },
+        {
+            "tituloFase": "Descarga de datos desde L31",
+            "pasos": [
+                {
+                    "accion": "Consultar L31 por lotes de instalaciones",
+                    "detalle": "El bot ingresa al sistema L31 y realiza descargas por lotes de hasta 100 instalaciones. Para cada lote, copia las instalaciones, pega en L31, selecciona 'Resultado de lectura' y descarga. Si son 500 instalaciones, realiza 5 descargas.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Consolidar datos de L31",
+                    "detalle": "El bot copia y pega todas las descargas de L31 en una pestaña consolidada del archivo de trabajo, aplica texto en columnas para separar instalación y fecha de lectura, y completa los campos de última fecha de lectura real y última lectura real en el archivo principal.",
+                    "excepcion_escenario": ""
+                }
+            ]
+        },
+        {
+            "tituloFase": "Descarga de fotos desde Webget",
+            "pasos": [
+                {
+                    "accion": "Descargar fotos por instalación",
+                    "detalle": "El bot itera por cada instalación a procesar. Para cada una, verifica si la carpeta de descarga ya fue creada (columna C). Si no existe, accede a la URL de la foto, realiza 'Guardar como' en formato JPG y guarda en la subcarpeta correspondiente a la instalación dentro de la carpeta de la fecha de ejecución. Cada instalación puede tener entre 1 y 6 fotos (columnas W, X, Y y siguientes).",
+                    "excepcion_escenario": "Error durante la descarga de una foto desde Webget (columna de ruta vacía o fallo en la descarga)"
+                },
+                {
+                    "accion": "Registrar ruta de carpeta de fotos",
+                    "detalle": "Una vez completadas las descargas de una instalación, el bot registra la ruta local de la carpeta de fotos en la columna CL del archivo de trabajo. Si hay error, deja la columna vacía para reintento en la próxima ejecución.",
+                    "excepcion_escenario": "La descarga de fotos se interrumpe a mitad del proceso (cuello de botella estimado en ~600 fotos)"
+                }
+            ]
+        },
+        {
+            "tituloFase": "Análisis de fotos con Inteligencia Artificial",
+            "pasos": [
+                {
+                    "accion": "Convertir fotos a base64",
+                    "detalle": "El bot accede a la carpeta de fotos de cada instalación y convierte todas las imágenes a formato base64 para enviarlas a la API de IA.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Enviar prompt e imágenes a la IA según tipo de anomalía",
+                    "detalle": "El bot envía a la IA las fotos en base64 junto con el prompt correspondiente al tipo de anomalía: prompt de 'dígitos corridos' para anomalía 31 y prompt de 'visor imposible lectura' para anomalía 32. El prompt incluye datos contextuales: número de serie del medidor, cantidad de esferas (dígitos) y lectura actual informada por el lecturista.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Registrar resultados de la IA",
+                    "detalle": "El bot registra en el archivo de trabajo los campos devueltos por la IA: validación (OK / Verificar), comentario extenso explicando el resultado, nivel de confianza (alto / bajo), lectura encontrada en la foto (si aplica), presencia de rejas en el nicho (sí / no / no determinado). Si el nivel de confianza no es alto, el resultado se fuerza a 'Verificar' independientemente del valor devuelto.",
+                    "excepcion_escenario": "La IA devuelve un resultado con nivel de confianza no alto (bajo)"
+                }
+            ]
+        },
+        {
+            "tituloFase": "Generación de informe resumen",
+            "pasos": [
+                {
+                    "accion": "Completar pestaña resumen",
+                    "detalle": "El bot vuelca en la pestaña resumen los campos principales de cada instalación procesada: porción, instalación, tipo de anomalía con descripción, ruta de carpeta de fotos, indicador de si fue verificada anteriormente (con número de reiteraciones), lectura encontrada por la IA, resultado de validación (OK / Verificar), nivel de confianza, comentario IA, presencia de rejas, última fecha de lectura real, última lectura real y centro de lectura (UL).",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Actualizar base de datos histórica",
+                    "detalle": "El bot registra en la base de datos histórica cada instalación procesada en esta ejecución, almacenando la llave instalación+anomalía, el nombre del archivo de informe y la fecha de ejecución. Esto permite identificar reiteraciones en ejecuciones futuras dentro de la ventana de 6 meses.",
+                    "excepcion_escenario": ""
+                },
+                {
+                    "accion": "Limpiar carpetas viejas de fotos",
+                    "detalle": "El bot elimina las carpetas de fotos descargadas que superen el período de retención definido (a confirmar por el cliente: 2 semanas, 6 meses u otro período) para evitar el crecimiento excesivo del espacio en disco.",
+                    "excepcion_escenario": ""
+                }
+            ]
+        }
+    ]
+}

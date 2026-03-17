@@ -122,16 +122,17 @@ class Stepper(QWidget):
                 )
 
 class FileInput(QWidget):
-    archivos_cargados = pyqtSignal(list)  # emite lista de rutas
+    # Señal para avisar que se cargó un archivo
+    archivos_cargados = pyqtSignal(list)
 
     # Configuro el fileInput con tipos de archivos permitidos y si acepta multiples o no
-    def __init__(self, placeholder="Arrastrá archivos o hacé click para buscar", tipos=None, multiple=False):
+    def __init__(self, placeholder="Arrastrá archivos o hacé click para buscar\n (*.docx *.pdf *.txt *.png)", tipos=None, multiple=False):
         super().__init__()
         self.tipos = tipos
         self.rutas = []
         self.multiple = multiple
         self.setAcceptDrops(True)
-        self.setMinimumHeight(80)  # mínimo en vez de fijo, para que crezca
+        self.setFixedHeight(200)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.label = QLabel(placeholder)
@@ -177,35 +178,16 @@ class FileInput(QWidget):
         self._aplicar_estilo_normal()
 
     def _setArchivos(self, paths):
-        self.rutas = paths
-
-        # Limpiar widgets anteriores
-        while self.layout_archivos.count():
-            item = self.layout_archivos.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-        if len(paths) == 1:
-            lbl = QLabel(f"📄 {os.path.basename(paths[0])}")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.layout_archivos.addWidget(lbl)
-        else:
-            for path in paths:
-                lbl = QLabel(f"📄 {os.path.basename(path)}")
-                lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.layout_archivos.addWidget(lbl)
-
-        self.archivos_cargados.emit(self.rutas)
+        
+        # Agrego las nuevas rutas a las anteriores, evitando duplicados
+        self.rutas.extend(paths) 
+        self.rutas = list(dict.fromkeys(self.rutas))
+        self.archivos_cargados.emit(self.rutas) 
 
     def _aplicar_estilo_normal(self):
         self.setStyleSheet("""
-            QWidget { border: 2px dashed #666; border-radius: 6px; background-color: #2d2d2d; }
-            QWidget:hover { border-color: #e68200; }
-        """)
-
-    def _aplicar_estilo_hover(self):
-        self.setStyleSheet("""
-            QWidget { border: 2px dashed #e68200; border-radius: 6px; background-color: #3a3000; }
+            QWidget { background-color: #9f9f9f; border-radius: 6px; border: 1px solid #ffffff; }
+            QWidget:hover { background-color: #7e7e7e; }
         """)
 
 class JsonEditor(QWidget):
@@ -310,22 +292,22 @@ class JsonEditor(QWidget):
 
         QMessageBox.information(self, "Guardado", "Cambios guardados correctamente")
 
-def createHeader(self, pantalla_anterior=None):
-    header_layout = QHBoxLayout()
-    header_layout.setContentsMargins(0, 0, 0, 0)
-    header_layout.setSpacing(12)
-
-    if pantalla_anterior:
-        backButton = createButton("← Volver", 90, 28)
-        backButton.clicked.connect(lambda: self.volver(pantalla_anterior))
-        backButton.setStyleSheet("""
-            QPushButton {background: transparent; border: none; color: #aaa; font-size: 13px;}
-            QPushButton:hover {color: #e68200;}
-        """)
-        header_layout.addWidget(backButton, alignment=Qt.AlignmentFlag.AlignVCenter)
-    
-    header_layout.addWidget(self.stepper)
-
-    header_widget = QWidget()
-    header_widget.setLayout(header_layout)
-    return header_widget
+def agregar_elementos(layout, *items):
+        for item in items:
+            if isinstance(item, tuple):
+                if len(item) == 3:
+                    widget, alignment, spacing = item
+                    layout.addSpacing(spacing)
+                    layout.addWidget(widget, alignment=alignment)
+                elif len(item) == 2:
+                    # distinguir si es (widget, alignment) o (widget, spacing)
+                    widget, segundo = item
+                    if isinstance(segundo, int):
+                        layout.addSpacing(segundo)
+                        layout.addWidget(widget)
+                    else:
+                        layout.addWidget(widget, alignment=segundo)
+            elif item == "stretch":
+                layout.addStretch()
+            else:
+                layout.addStretch(item)
