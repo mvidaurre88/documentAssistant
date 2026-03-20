@@ -1,0 +1,86 @@
+Vas a recibir la transcripción de una reunión donde se habla sobre un proceso o bot de automatización. 
+Opcionalmente también podrías recibir información proveniente de un documento PDD.
+
+Tu tarea es analizar la transcripción y extraer la información para completar el siguiente JSON.
+
+Reglas importantes:
+- Devuelve ÚNICAMENTE el JSON.
+- No agregues explicaciones ni texto adicional.
+- Si un campo no aparece claramente en la transcripción o no estás seguro, déjalo vacío ("") o como lista vacía ([]).
+- No inventes información.
+- Mantén exactamente la misma estructura del JSON.
+- Si detectas múltiples modificaciones o revisiones, agrégalas como múltiples objetos dentro de sus listas.
+- La fecha debe estar siempre en formato dd/mm/yyyy.
+
+Regla especial (cuando NO se proporciona un PDD y solo hay transcripción):
+- version = "0.0"
+- En "modificaciones" agregar un único objeto con:
+    - version = "0.0"
+    - fecha = fecha del dia de hoy, NO LA FECHA DE LOS DOCUMENTOS
+    - paginas = "todas"
+    - motivo = "creacion de documento"
+    - autor = mismo valor que "desarrollador"
+    - sector = "RPA"
+
+Formato a devolver:
+
+{
+    "codigoBot": "<identificador del bot si se menciona>",
+    "nombreBot": "<nombre del bot>",
+    "cliente": "<nombre de la empresa del cliente>",
+    "desarrollador": "<persona o equipo que desarrolla el bot>",
+    "fecha": "<fecha de hoy, NO LA FECHA DE LOS DOCUMENTOS>",
+    "version": "<versión actual del bot>",
+    "modificaciones": [
+        {
+            "version": "<versión de la modificación>",
+            "fecha": "<fecha de hoy, NO LA FECHA DE LOS DOCUMENTOS>",
+            "paginas": "<páginas afectadas>",
+            "motivo": "<motivo del cambio>",
+            "autor": "<persona que realizó el cambio>",
+            "sector": "<sector responsable del cambio>"
+        }
+    ],
+    "revision": [
+        {
+            "version": "<versión revisada>",
+            "fecha": "<fecha de la revisión>",
+            "aprobador": "<persona que aprueba o revisa>",
+            "comentarios": "<comentarios de la revisión>"
+        }
+    ],
+    "propositoProceso": "<objetivo del bot o proceso>",
+    "entradas": [
+        "<archivos, datos o inputs que utiliza el proceso>"
+    ],
+    "salidas": [
+        "<archivos o resultados generados por el proceso>"
+    ],
+    "carpetaCompartida": "<ubicación compartida solo si se menciona>",
+    "carpetaOutput": "<carpeta donde el proceso deja los resultados>",
+    "carpetaInput": "<carpeta donde el proceso toma los archivos de entrada>",
+    "contactos": [
+        "<personas mencionadas como contacto o responsables>"
+    ],
+    "ejecucion": "<frecuencia o forma de ejecución: manual, scheduler, horario, etc.>",
+    "excepciones": [
+        {
+            "numero": "<4.2.x completar x con un numero incremental>",
+            "tipo": "<tecnica o de negocio>",
+            "escenario": "<descripción del escenario de excepción>",
+            "accion": "<acción a tomar ante la excepción>"
+        }
+    ],
+    "fases": [
+        {
+            "tituloFase": "<nombre de la fase del proceso>",
+            "pasos": [
+                {
+                    "accion": "<nombre de la acción del paso>",
+                    "detalle": "<descripción detallada del paso>",
+                    "excepcion_escenario": "<escenario de excepción asociado al paso>"
+                }
+            ]
+        }
+    ]
+}

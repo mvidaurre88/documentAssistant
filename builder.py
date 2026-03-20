@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
@@ -14,10 +15,8 @@ def createLayout(spacing, margins, direction):
     layout.setContentsMargins(*margins)
     return layout
 
-def createButton(text, width, height, icon_path=None):
+def createButton(text, icon_path=None):
     btn = QPushButton(text)
-    btn.setFixedWidth(width)
-    btn.setFixedHeight(height)
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
     if icon_path:
         btn.setIcon(QIcon(icon_path))
@@ -39,11 +38,13 @@ def createPixmap(path, width, height):
     icon.setPixmap(pixmap)
     return icon
 
-def createContainer(spacing):
+def createContainer(spacing, direction="vertical"):
     container = QWidget()
-    container_layout = QVBoxLayout(container)
+    if direction == "vertical":
+        container_layout = QVBoxLayout(container)
+    else:
+        container_layout = QHBoxLayout(container)
     container_layout.setSpacing(spacing)
-    container_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
     return container, container_layout
 
 class Stepper(QWidget):
@@ -191,20 +192,31 @@ class FileInput(QWidget):
         """)
 
 class JsonEditor(QWidget):
-    def __init__(self, ruta_txt):
-        super().__init__()
-        self.ruta_txt = ruta_txt
-        self.campos = {}  # path completo -> QLineEdit
+    datos_actualizados = pyqtSignal(dict)
 
-        with open(ruta_txt, "r", encoding="utf-8") as f:
-            self.data = json.load(f)
+    def __init__(self, ruta_o_texto):
+        super().__init__()
+        self.ruta_txt = None
+        self.campos = {}
+
+        # Si es una ruta a un archivo existente, lo lee
+        if os.path.exists(ruta_o_texto):
+            self.ruta_txt = ruta_o_texto
+            with open(ruta_o_texto, "r", encoding="utf-8") as f:
+                self.data = json.load(f)
+        else:
+            # Si es texto directo, lo parsea como JSON
+            # Limpia bloques ```json ... ``` por si Gemini los incluye
+            texto = ruta_o_texto.strip()
+            texto = re.sub(r"```json|```", "", texto).strip()
+            self.data = json.loads(texto)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
-
         self._construirCampos(self.data, layout)
 
-        btn_guardar = createButton("Guardar cambios", 160, 32)
+        btn_guardar = createButton("Guardar cambios")
+        btn_guardar.setFixedSize(160, 32)
         btn_guardar.clicked.connect(self.guardar)
         layout.addWidget(btn_guardar, alignment=Qt.AlignmentFlag.AlignRight)
 
@@ -287,9 +299,8 @@ class JsonEditor(QWidget):
             valor_original = self._getValorOriginal(self.data, keys)
             self._setValor(self.data, keys, input_widget.text(), valor_original)
 
-        with open(self.ruta_txt, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=4, ensure_ascii=False)
-
+        # Emite el dict actualizado en lugar de guardar en disco
+        self.datos_actualizados.emit(self.data)
         QMessageBox.information(self, "Guardado", "Cambios guardados correctamente")
 
 def agregar_elementos(layout, *items):
