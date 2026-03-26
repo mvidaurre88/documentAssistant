@@ -4,32 +4,23 @@ from navigation import *
 
 def screen_load_files():
     
-    top_bar(title="Ingrese los archivos", back_to="select", show_stepper=True, step=1)
+    # BARRA DE NAVEGACION
+    top_bar(title="Ingrese archivos para analizar", back_to="select", show_stepper=True, step=1)
 
-    st.markdown("<p style='text-align:center; color:#ccc;'>Screenshots, PDFs, textos, etc.</p>", unsafe_allow_html=True)
+    # VERIFICO SI ES UN ARCHIVO NUEVO O SE BUSCA MODIFICAR UNO EXISTENTE
+    if st.session_state.mode == "Modificar existente":     
+        file = st.file_uploader("Subí acá el archivo a modificar o actualizar (PDD o SDD):", type=["pdf", "docx"], accept_multiple_files=False)
+        st.session_state.file = file
+        
+    # CARGADOR DE ARCHIVOS
+    files = st.file_uploader("Subí acá los demas archivos (screenshots, transcripciones, etc):", type=["pdf", "png", "txt", "docx"], accept_multiple_files=True)
+    st.session_state.files = files
 
-    files = st.file_uploader(
-        "Subir archivos",
-        accept_multiple_files=True
-    )
+    col_center = st.columns([3,1,3])[1]
 
-    if files:
-        st.markdown("### 📂 Archivos cargados")
-
-        cols = st.columns(4)
-        for i, f in enumerate(files):
-            with cols[i % 4]:
-                st.markdown(f"""
-                <div class="card">
-                    📄<br>
-                    <small>{f.name}</small>
-                </div>
-                """, unsafe_allow_html=True)
-
-        st.session_state.files = files
-
-    if st.button("Avanzar paso"):
-        if not files:
-            st.warning("Cargá al menos un archivo")
-        else:
-            go_to("ai")
+    with col_center:
+        if st.button("Avanzar paso", use_container_width=True):
+            if not files:
+                st.warning("Cargá al menos un archivo")
+            else:
+                    go_to("ai")

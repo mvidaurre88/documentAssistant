@@ -3,7 +3,7 @@ from screens.screen_select_document import screen_select_document
 from screens.screen_load_files import screen_load_files
 from screens.screen_connect_ai import screen_connect_ai
 from screens.screen_verify import screen_verify
-#from screens.screen_final import screen_final
+from screens.screen_final import screen_final
 
 def get_screens(BASE_DIR):
     return {
@@ -12,5 +12,5 @@ def get_screens(BASE_DIR):
         "load": screen_load_files,
         "ai": screen_connect_ai,
         "verify": screen_verify,
-        #"final": screen_final,
+        "final": screen_final,
     }

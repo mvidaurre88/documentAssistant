@@ -6,6 +6,8 @@ from docx.oxml.ns import qn
 from word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
 import json
 from jinja2 import Undefined, Environment
+import streamlit as st
+from docx.shared import Inches
 
 class KeepUndefined(Undefined):
     def __str__(self):
@@ -18,6 +20,7 @@ def crear_subdoc_fase(tpl, fase):
     sd = tpl.new_subdoc()
     sd.add_paragraph(fase["tituloFase"], style="Heading 2")
     tabla = sd.add_table(rows=1, cols=4)
+    set_col_widths(tabla, [Cm(0.6), Cm(2.0), Cm(3.3), Cm(0.9)])
     tabla.style = 'Table Grid'
     headers = ["N°", "Acción", "Detalle", "Excepción"]
     for i, h in enumerate(headers):
@@ -117,8 +120,29 @@ def generate_docx(jsonText):
                     row.cells[3].text = paso.get("excepcion_numero", "")
                 para._p.addnext(tabla._tbl)
                 break
+    
+    WIDTHS_FASES        = [Inches(0.6), Inches(2.0), Inches(3.3), Inches(0.9)]
+    WIDTHS_EXCEPCIONES  = [Inches(0.6), Inches(2.4), Inches(3.7)]
+    
+    for tabla in doc.tables:
+        primera_fila = [c.text.strip() for c in tabla.rows[0].cells] if tabla.rows else []
+
+        if "Acción" in primera_fila and "Detalle" in primera_fila:
+            set_col_widths(tabla, WIDTHS_FASES)
+
+        elif "Escenario" in primera_fila or "Excepción" in primera_fila:
+            set_col_widths(tabla, WIDTHS_EXCEPCIONES)
+    
+    st.session_state.output_path = r"C:\Users\mvidaurre\Desktop\RPA\output.docx"
+    
     doc.save(r"C:\Users\mvidaurre\Desktop\RPA\output.docx")
-    print("Listo!")
+
+from docx.shared import Cm
+
+def set_col_widths(tabla, widths):
+    for row in tabla.rows:
+        for i, cell in enumerate(row.cells):
+            cell.width = widths[i]
 
 def main():
     generate_docx()

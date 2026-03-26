@@ -1,11 +1,6 @@
 import streamlit as st
 import os
-import json
-
-# Imports tuyos (los vamos a adaptar después)
-from datetime import date
 from builder import *
-from docx_generator import *
 from router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -157,35 +152,7 @@ inject_css()
 st.set_page_config(page_title="IA Documentation Assistant", layout="wide")
 st.session_state.setdefault("current_screen", "init")
 st.session_state.setdefault("response", None)
+st.session_state.setdefault("processing", False)
 
-def card(title):
-    return f"""
-    <div class="card">
-        <h3>{title}</h3>
-    </div>
-    """
-
-# -- PASO 5 ----------------------------------------------------------------------------------------
-def screen_final():
-    render_stepper(st)
-    st.success("Documento generado correctamente 🎉")
-
-def fix_fechas(data: dict) -> dict:
-    hoy = date.today().strftime("%d/%m/%Y")
-
-    def _recorrer(obj):
-        if isinstance(obj, dict):
-            for key in obj:
-                if "fecha" in key.lower():
-                    obj[key] = hoy
-                else:
-                    _recorrer(obj[key])
-        elif isinstance(obj, list):
-            for item in obj:
-                _recorrer(item)
-
-    _recorrer(data)
-    return data
-
-# -- ROUTER ----------------------------------------------------------------------------------------
+# -- ROUTER PARA ACCEDER A LAS PAGINAS -------------------------------------------------------------
 SCREENS[st.session_state.current_screen]()
