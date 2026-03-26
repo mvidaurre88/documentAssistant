@@ -3,7 +3,6 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-from close_file import close_file
 from word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
 import json
 from jinja2 import Undefined, Environment
