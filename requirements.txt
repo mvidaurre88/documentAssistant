@@ -1,4 +1,4 @@
 docxtpl
 python-docx
 jinja2
-google-generativeai
+google-genai
