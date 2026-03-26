@@ -6,7 +6,6 @@ import json
 from datetime import date
 from builder import *
 from docx_generator import *
-from AIConnector import *
 from router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
