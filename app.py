@@ -1,120 +1,192 @@
-import sys
+import streamlit as st
 import os
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import *
-from PyQt6.QtWidgets import *
-from narwhals import col
+import json
+
+# Imports tuyos (los vamos a adaptar después)
+from datetime import date
 from builder import *
 from docx_generator import *
 from AIConnector import *
-
-from pages.initWindow import initWindow
-from pages.selectDocumentType import selectDocumentType
-from pages.loadFiles import loadFiles as loadFilesPage
-from pages.connectToAI import connectToAI as connectToAIPage
-from pages.verifyResponse import verifyResponse as verifyResponsePage
+from router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCREENS = get_screens(BASE_DIR)
 
-class mainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self._worker = None
+def inject_css():
+    st.markdown("""
+    <style>
 
-        # Nombre de la ventana, icono y tamaño
-        self.setWindowTitle("IA Documentation Assistant")
-        self.setWindowIcon(QIcon(os.path.join(BASE_DIR,"icons", "icon.ico")))
-        self.setMinimumSize(750, 600)
-        self.initWindow()
-        self.stepper = Stepper(["Inicio", "Cargar datos", "Generar archivo", "Verificar datos", "Fin"])
+    /*App general*/
+    .stApp { background-color: #3c3c3c; font-family: Consolas, monospace;}
 
-    def initWindow(self):
-        initWindow(self).render(BASE_DIR)
+    /* Botones */
+    .stButton>button {
+        background-color: #e68200;
+        color: white;
+        font-weight: bold;
+        font-size: 15px;
+        padding: 6px 12px;
+        border-radius: 3px;
+        border: none;
+    }
 
-    # Paso 1: Elegir tipo de documento -----------------------------------------
-    def selectDocumentType(self):
-        selectDocumentType(self).render(BASE_DIR)
+    a[aria-label="Link to heading"] {
+        display: none !important;
+    }
 
-    # Paso 2: Cargar archivos con datos ----------------------------------------
-    def loadFiles(self):
-        self._loadFilesPage = loadFilesPage(self)
-        self._loadFilesPage.render(BASE_DIR)
+    .stButton>button:hover {
+        background-color: #ff9500;
+    }
 
-    # Paso 3: Conectar con la IA para procesar datos ---------------------------
-    def connectToAI(self):
-        self._connectToAIPage = connectToAIPage(self)
-        self._connectToAIPage.render(BASE_DIR)
+    .stButton>button:active {
+        background-color: #b36500;
+    }
 
-    # Paso 4: Verificar respuesta de la IA y editar datos si es necesario ------
-    def verificarRespuesta(self, response=None):
-        self._verifyResponsePage = verifyResponsePage(self)  # ← guardás la instancia
-        self._verifyResponsePage.render(response)
+    /* Inputs */
+    input, textarea {
+        background-color: #2d2d2d !important;
+        color: #d4d4d4 !important;
+        border: 1px solid #555 !important;
+    }
 
-    def generarDocumento(self):
-        # Config inicial
-        layout = self.initial_config(previous_screen = self.verificarRespuesta)
+    /* Labels */
+    label, .stMarkdown {
+        color: #ffffff !important;
+    }
 
-        # Avanzo la barra de pasos
-        self.stepper.avanzar(4)
+    /* Cards */
+    .card {
+        background-color: #2d2d2d;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        transition: 0.2s;
+    }
 
-        generate_docx()
+    .card:hover {
+        border: 1px solid #e68200;
+        cursor: pointer;
+    }
 
-    def initial_config(self, previous_screen, stretch=False):
+    /* Stepper */
+    .step-active {
+        color: #e68200;
+        font-weight: bold;
+    }
 
-        central = QWidget()
-        self.setCentralWidget(central)
-
-        # Layout
-        layout = createLayout(spacing=0, margins=(30, 20, 30, 20), direction="vertical")
-        if stretch:
-            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        central.setLayout(layout)
-
-        if previous_screen:
-            # Botón para volver al paso anterior
-            backButton = createButton("← Volver")
-            backButton.setFixedWidth(90)
-            backButton.setFixedHeight(28)
-            backButton.clicked.connect(lambda: self.volver(previous_screen))
-            backButton.setStyleSheet("""
-                QPushButton {background: transparent; border: none; color: #aaa; font-size: 13px;}
-                QPushButton:hover {color: #e68200;}
-            """)
-            layout.addWidget(backButton, alignment=Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(self.stepper)
-
-        return layout
-
-    def volver(self, previous_screen):
-        self.stepper.retroceder(1) 
-        previous_screen()
-
-if __name__ == "__main__":
-    import traceback
-
-    def handle_exception(exc_type, exc_value, exc_tb):
-        print("CRASH NO CAPTURADO:")
-        traceback.print_exception(exc_type, exc_value, exc_tb)
-
-    sys.excepthook = handle_exception
-
-    app = QApplication(sys.argv)
-   
-    # Configuro estilo para todos los elementos de la aplicación
-    app.setStyleSheet("""
-            QMainWindow, QWidget {background-color: #3c3c3c; font-family: Consolas;}
-                        
-            QPushButton {background-color: #e68200; color: #ffffff; font-weight: bold; font-size: 15px; padding: 6px 12px; border-radius: 3px;}
-                        
-            QPushButton:hover {background-color: #ff9500;}
-            
-            QPushButton:pressed {background-color: #b36500;}
-            
-            QLineEdit, QTextEdit {background-color: #2d2d2d; color: #d4d4d4; border: 1px solid #555; padding: 4px;}
-            
-            QLabel {color: #ffffff;} 
-        """)
+    .step-inactive {
+        color: #888;
+    }
     
-    window = mainWindow()
-    window.show()
-    sys.exit(app.exec())
+    button[title="View fullscreen"],
+    button[title="Fullscreen"],
+    button[aria-label="View fullscreen"],
+    button[aria-label="Fullscreen"] {
+        display: none !important;
+    }
+    
+
+    div[data-testid="stElementContainer"] {
+        margin-bottom: 0rem !important;
+    }
+
+    /* Markdown spacing */
+    .stMarkdown {
+        margin-bottom: 0rem !important;
+    }
+
+    .top-bar {
+        position: sticky;
+        top: 0;
+        background-color: #3c3c3c;
+        padding: 10px 10px;
+        z-index: 999;
+        border-bottom: 1px solid #555;
+    }
+
+    .top-bar h3 {
+        margin: 0;
+    }
+    
+    div[role="radiogroup"] label > div:first-child {
+        display: none;
+    }
+
+    /* Cada opción */
+    div[role="radiogroup"] label {
+        background-color: #2d2d2d;
+        padding: 20px;
+        margin: 5px;
+        border-radius: 10px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        text-align: center;
+        transition: 0.2s;
+        flex: 1;
+        width: 400px;
+        justify-content: center;
+    }
+
+    /* Hover */
+    div[role="radiogroup"] label:hover {
+        border: 2px solid #e68200;
+        transform: scale(1.02);
+    }
+
+    /* Seleccionado */
+    div[role="radiogroup"] label:has(input:checked) {
+        border: 2px solid #e68200;
+        background-color: #3a2a10;
+    }
+        
+    div[data-testid="stRadio"] {
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Centrar el contenedor padre */
+    div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) {
+        display: flex;
+        justify-content: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+inject_css()
+
+# -- CONFIGURACIÓN INICIAL -------------------------------------------------------------------------
+st.set_page_config(page_title="IA Documentation Assistant", layout="wide")
+st.session_state.setdefault("current_screen", "init")
+st.session_state.setdefault("response", None)
+
+def card(title):
+    return f"""
+    <div class="card">
+        <h3>{title}</h3>
+    </div>
+    """
+
+# -- PASO 5 ----------------------------------------------------------------------------------------
+def screen_final():
+    render_stepper(st)
+    st.success("Documento generado correctamente 🎉")
+
+def fix_fechas(data: dict) -> dict:
+    hoy = date.today().strftime("%d/%m/%Y")
+
+    def _recorrer(obj):
+        if isinstance(obj, dict):
+            for key in obj:
+                if "fecha" in key.lower():
+                    obj[key] = hoy
+                else:
+                    _recorrer(obj[key])
+        elif isinstance(obj, list):
+            for item in obj:
+                _recorrer(item)
+
+    _recorrer(data)
+    return data
+
+# -- ROUTER ----------------------------------------------------------------------------------------
+SCREENS[st.session_state.current_screen]()
