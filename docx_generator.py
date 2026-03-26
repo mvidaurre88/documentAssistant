@@ -122,7 +122,6 @@ def generate_docx(jsonText):
     print("Listo!")
 
 def main():
-    close_file("output.docx")
     generate_docx()
 
 if __name__ == "__main__":
