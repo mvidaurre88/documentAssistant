@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from datetime import date
 import json
+import re
 from navigation import *
 from components.top_bar import top_bar
 from docx_generator import *
@@ -16,6 +17,7 @@ def screen_verify():
     raw = st.session_state.response
     if isinstance(raw, str):
         texto_limpio = re.sub(r"```json|```", "", raw).strip()
+        texto_limpio = re.sub(r'\\(?!n)', r'\\\\', texto_limpio)
         data = json.loads(texto_limpio)
         data = fix_fechas(data)
     else:

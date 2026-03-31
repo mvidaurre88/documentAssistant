@@ -54,7 +54,7 @@ def process_with_ai(files):
         # DEFINO QUE PROMPT USAR
         type = st.session_state.doc_type
         mode = st.session_state.mode
-        prompt_path = os.path.join(BASE_DIR, "prompts", type + "_" + mode + ".txt")
+        prompt_path = os.path.join(BASE_DIR, "prompts", type + ".txt")
         
         response = send_to_gemini(
             prompt_path=prompt_path,

@@ -1,106 +1,170 @@
 {
-  "codigoBot": "AVA#8",
-  "nombreBot": "ATW_Legajos y Formularios",
-  "cliente": "Ataway",
-  "desarrollador": "Tomas Bognanni",
-  "fecha": "31/03/2026",
-  "version": "0.0",
-  "modificaciones": [
-    {
-      "version": "0.0",
-      "fecha": "31/03/2026",
-      "paginas": "todas",
-      "motivo": "Creación de documento SDD",
-      "autor": "Tomas Bognanni",
-      "rol": "Desarrollador",
-      "sector": "RPA"
-    }
-  ],
-  "procesoNegocioAltoNivel": "El BOT AVA#8 automatiza la verificación de legajos y formularios de empleados, asegurando que estén completos y correctamente nombrados. Accede al archivo D-TM-BA-Control Monitor Profiles, extrae datos de empleados (nombres y fechas de alta AFIP), y revisa sus carpetas personales en SharePoint (Activos e Inactivos). Luego, compara los archivos encontrados con las nomenclaturas y tipos definidos en la pestaña Documents (verificando sufijo -vf, extensión y coincidencia de fechas) y genera un reporte en formato Excel identificando estados como Correcto, Erróneo o Archivo Faltante, enviando finalmente notificaciones por correo electrónico al sector de RRHH.",
-  "solucionTecnicaAltoNivel": [
-    {
-      "nombreTarea": "ATW_Legajos y formularios_Sharepoint",
-      "descripcionTarea": "Accede a las rutas de SharePoint parametrizadas, navega a las carpetas de Legajos Activos/Inactivos y lee el listado de archivos correspondientes a cada empleado extraído del input."
-    },
-    {
-      "nombreTarea": "ATW_Legajos y formularios_SP_Validaciones",
-      "descripcionTarea": "Realiza las validaciones de negocio sobre los documentos encontrados (sufijo -vf, extensión, nomenclatura con nombre del empleado en mayúsculas y fecha Alta AFIP)."
-    },
-    {
-      "nombreTarea": "ATW_Legajos y formularios_Report",
-      "descripcionTarea": "Construye dinámicamente el archivo de salida (Output), registra los estados de las validaciones y ejecuta macros de formato y limpieza."
-    }
-  ],
-  "solucionTecnicaDetallada": [
-    {
-      "nombreTarea": "ATW_Legajos y formularios_Sharepoint",
-      "descripcionExacta": "1. El bot lee las variables strSubdomain y strPathControlMonitorProfiles del archivo ATW_Legajos y Formularios_Config.xlsx.\n2. Accede al SharePoint mediante las credenciales de automateuser@ataway.com.\n3. Lee el archivo D-TM-BA-Control Monitor Profiles.xlsx (Pestañas Doc Info, Documents, Profile Monitor).\n4. Extrae la lista de empleados y las nomenclaturas esperadas construyendo listas separadas para Altas y Bajas.\n5. Verifica la existencia de las carpetas de los empleados en 'Shared Documents/_Control Legajos 2026/Legajos Activos' o 'Legajos Inactivos' según corresponda.\n6. Obtiene y almacena los nombres de los archivos contenidos en las carpetas halladas.",
-      "excepciones": [
-        {
-          "evento": "Carpeta de empleado no encontrada en SharePoint. El bot registra que el empleado no posee carpeta en el archivo Output y continúa con el siguiente empleado de la lista."
-        }
-      ]
-    },
-    {
-      "nombreTarea": "ATW_Legajos y formularios_SP_Validaciones",
-      "descripcionExacta": "1. Recorre la lista de documentos obtenidos de SharePoint para cada empleado.\n2. Verifica si la extracción del tipo de documento está incluida en el archivo de entrada.\n3. Valida si el documento posee el sufijo '-vf' (versión final).\n4. Compara la extensión del documento contra la extensión existente en el template.\n5. Compara la fecha del documento (yyyy mm) con la Fecha Alta AFIP (formateada a MM/dd/yyyy).\n6. Valida que el nombre del empleado esté formateado correctamente (APELLIDO Nombre).\n7. Si una validación falla, interrumpe el flujo para ese documento y lo marca como Erróneo.",
-      "excepciones": [
-        {
-          "evento": "Inconsistencia de nomenclatura (Falta -vf, extensión incorrecta, apellido minúscula o fecha dispar). El bot registra 'Erróneo' en la columna correspondiente al tipo de documento en el archivo Output."
-        }
-      ]
-    },
-    {
-      "nombreTarea": "ATW_Legajos y formularios_Report",
-      "descripcionExacta": "1. Abre el archivo C:\\RPA\\Legajos y Formularios\\Legajos y formularios Output.xlsx.\n2. Ejecuta la macro C:\\RPA\\Legajos y Formularios\\Limpieza Output.xlsm para limpiar registros previos.\n3. Crea columnas dinámicas en base a la pestaña 'Documents' del input.\n4. Escribe el ID de empleado, Nombre y si posee carpeta.\n5. Vuelca los resultados de la validación ('Correcto', 'Erróneo', o vacío/faltante) para cada documento.\n6. Ejecuta C:\\RPA\\Legajos y Formularios\\MACRO ALTAS - .xlsm y C:\\RPA\\Legajos y Formularios\\VBA MACROS.xlsm para escribir 'Pendiente' en celdas vacías y dar formato final.",
-      "excepciones": [
-        {
-          "evento": "Falta documento requerido (Archivo Faltante). El bot no encuentra coincidencias, dejando la celda expuesta para que la macro la catalogue como 'Pendiente' u omisión, reportándolo en el Excel."
-        }
-      ]
-    }
-  ],
-  "excepciones": [
-    {
-      "evento": "Carpeta de empleado inexistente",
-      "detalle": "Al buscar en SharePoint dentro de Legajos Digitales Activos o Inactivos, el bot no encuentra la carpeta con la estructura 'APELLIDO Nombre' definida en el Excel Monitor Profile.",
-      "accion": "El bot registra el estado de carpeta inexistente en el archivo Output y avanza con el procesamiento del siguiente legajo en la lista.",
-      "responsable": "Cliente"
-    },
-    {
-      "evento": "Nomenclatura o formato de archivo erróneo",
-      "detalle": "El documento en la carpeta existe pero no cumple con las reglas: falta el sufijo '-vf', tiene otra extensión de archivo, el formato del nombre no coincide con el template, o el mes/año del archivo no matchea la Fecha Alta AFIP.",
-      "accion": "El bot marca dicho documento específico como 'Erróneo' en la fila del empleado dentro del Excel Output final.",
-      "responsable": "Cliente"
-    },
-    {
-      "evento": "Archivo faltante",
-      "detalle": "El bot no encuentra dentro de la carpeta del empleado un documento obligatorio según la tipología detallada en la solapa 'Documents'.",
-      "accion": "Se asienta la ausencia del documento durante el volcado de datos y la macro posterior marca la carencia (ej. Pendiente).",
-      "responsable": "Cliente"
-    }
-  ],
-  "aplicaciones": [
-    {
-      "nombre": "Excel (Office 365)",
-      "version": "",
-      "comentarios": "Utilizado para lectura del Input (D-TM-BA-Control Monitor Profiles) y escritura del Output, con ejecución de macros VBA (.xlsm)."
-    },
-    {
-      "nombre": "SharePoint (Office 365)",
-      "version": "",
-      "comentarios": "Repositorio central para lectura de carpetas de legajos (Activos/Inactivos) y validación de nombres de archivos."
-    },
-    {
-      "nombre": "SMTP",
-      "version": "",
-      "comentarios": "Utilizado al finalizar el proceso para el envío de notificaciones de éxito o error técnico a los usuarios del negocio (hr-arg@ataway.com)."
-    },
-    {
-      "nombre": "Automation Anywhere",
-      "version": "Automation 360",
-      "comentarios": "Plataforma RPA que ejecuta la lógica general del proceso desde la Control Room."
-    }
-  ],
-  "diagrama_pasos": "graph TD\nSTART([START])\nSTART --> main[ATW_Legajos y Formularios_Main_V1]\nmain --> setup[ATW_Legajos y formularios_Setup]\nsetup --> config[ATW_Legajos y formularios_Config]\nconfig --> sharepoint[ATW_Legajos y formularios_Sharepoint]\nsharepoint --> validaciones[ATW_Legajos y formularios_SP_Validaciones]\nvalidaciones --> report[ATW_Legajos y formularios_Report]\nreport --> notificaciones[ATW_Legajos y formularios_Notificaciones]\nnotificaciones --> END([END])\nclassDef comun fill:#ADD8E6,stroke:#333,stroke-width:2px;\nclassDef especifica fill:#FFFFE0,stroke:#333,stroke-width:2px;\nclass main,setup,config,notificaciones comun;\nclass sharepoint,validaciones,report especifica;"
+"codigoBot": "02308 ",
+"nombreBot": "Legajos y formularios ",
+"cliente": "Ataway ",
+"desarrollador": "Tomas Bognanni ",
+"fecha": "31/03/2026 ",
+"version": "0.0",
+"modificaciones": [
+{
+"version": "0.0",
+"fecha": "31/03/2026",
+"paginas": "todas",
+"motivo": "Creación de documento SDD",
+"autor": "Tomas Bognanni ",
+"rol": "Desarrollador",
+"sector": "RPA "
+}
+],
+"procesoNegocioAltoNivel": "El BOT 02308 automatiza la verificación de legajos y formularios de empleados, asegurando que estén completos y correctamente nombrados. Para hacerlo, accede al archivo D-TM-BA-Control Monitor Profiles, identifica a los empleados desde la pestaña Profile Monitor, y revisa sus carpetas personales en SharePoint. Luego, compara los archivos con las nomenclaturas definidas en la pestaña Document y en caso de faltante o codificación incorrecta, el Bot genera una alerta para su corrección. Finalmente, genera un reporte consolidado en Excel y envía una notificación final por correo electrónico.",
+"solucionTecnicaAltoNivel": [
+{
+"nombreTarea": "ATW_Legajos y formularios_Sharepoint ",
+"descripcionTarea": "Establece la conexión con SharePoint y valida el acceso a las rutas configuradas de Legajos Activos e Inactivos."
+},
+{
+"nombreTarea": "ATW_Legajos y formularios_SP_Validaciones ",
+"descripcionTarea": "Realiza la extracción de datos del Excel, busca las carpetas de los empleados en SharePoint, verifica la existencia de documentos y valida su nomenclatura."
+},
+{
+"nombreTarea": "ATW_Legajos y formularios_Report ",
+"descripcionTarea": "Escribe los resultados de validación en el archivo Excel Output, ejecuta macros de formato y envía el correo de notificación."
+}
+],
+"solucionTecnicaDetallada": [
+{
+"nombreTarea": "ATW_Legajos y formularios_Sharepoint ",
+"descripcionExacta": "El bot accede al sitio de SharePoint e ingresa credenciales. Verifica que la cuenta de servicio posea permisos de lectura y escritura sobre el repositorio principal, la carpeta Legajos Digitales Activos, la carpeta Legajos Digitales Inactivos y la carpeta Logs del Bot.",
+"excepciones": [
+{
+"evento": "Fallo de acceso a SharePoint o a la ruta configurada.",
+"accion": "El bot finaliza el proceso y se notifica el error."
+}
+]
+},
+{
+"nombreTarea": "ATW_Legajos y formularios_SP_Validaciones ",
+"descripcionExacta": "Accede al archivo Excel 'D-TM-BA-Control Monitor Profiles' y lee las pestañas Doc Info, Documents y Profile Monitor. Extrae el ID del empleado, el nombre para buscar la carpeta (construido como APELLIDO Nombre) y la Fecha Alta AFIP normalizando su formato a 'MM/dd/yyyy'. Luego, itera por cada empleado y busca su carpeta en SharePoint dentro de Legajos Activos o Inactivos según su estado. Si encuentra la carpeta, lista los archivos y compara cada documento requerido contra la nomenclatura esperada, validando el sufijo '-vf', la extensión, el apellido y la fecha extraída del Alta AFIP. Las validaciones son secuenciales, interrumpiéndose ante la primera validación fallida.",
+"excepciones": [
+{
+"evento": "Carpeta de empleado no encontrada en SharePoint.",
+"accion": "Escribe en el archivo Output que el empleado no posee carpeta y pasa al siguiente empleado."
+},
+{
+"evento": "Documento requerido faltante en la carpeta.",
+"accion": "Registra el estado como 'Archivo Faltante' en el archivo Output y continúa con el siguiente documento."
+},
+{
+"evento": "Nomenclatura o formato incorrecto (sin -vf, fecha errónea).",
+"accion": "Registra el estado como 'Erróneo' en el archivo Output y continúa con el siguiente documento."
+}
+]
+},
+{
+"nombreTarea": "ATW_Legajos y formularios_Report ",
+"descripcionExacta": "El bot abre el archivo 'Legajos y formularios Output.xlsx' y ejecuta la macro de limpieza para eliminar registros previos. Añade columnas dinámicamente según los tipos documentales leídos. Escribe línea por línea los resultados obtenidos (Correcto, Erróneo, Archivo Faltante o '-'). Tras rellenar el archivo, ejecuta las macros 'MACRO ALTAS' y 'VBA MACROS' para aplicar reglas de celdas vacías o pendientes. Finalmente, envía un correo a 'hr-arg@ataway.com' adjuntando la ruta de acceso al Excel.",
+"excepciones": []
+}
+],
+"excepciones": [
+{
+"evento": "Carpeta Inexistente ",
+"detalle": "El bot no encuentra la carpeta del empleado (formateada como APELLIDO Nombre) dentro de Legajos Digitales Activos ni Legajos Digitales Inactivos en SharePoint.",
+"accion": "Se registra el estado 'No posee carpeta' en la columna correspondiente del Output y se pasa al siguiente registro.",
+"responsable": "Cliente"
+},
+{
+"evento": "Archivo Faltante ",
+"detalle": "El documento específico requerido, según la plantilla de la pestaña Documents, no existe dentro de la carpeta del empleado.",
+"accion": "Se registra el estado 'Archivo Faltante' en la celda correspondiente al documento y se continúa la validación.",
+"responsable": "Cliente"
+},
+{
+"evento": "Nomenclatura Errónea ",
+"detalle": "El archivo existe pero no cumple con el formato exacto requerido: TipoDocumento-APELLIDO Nombre-yyyymm-vf.pdf, lo cual incluye el sufijo '-vf', el año y mes de la fecha de alta, y la extensión correcta.",
+"accion": "Se registra el estado 'Erróneo' en el Output y se interrumpe la validación de ese documento para pasar al siguiente.",
+"responsable": "Cliente"
+}
+],
+"aplicaciones": [
+{
+"nombre": "Automation Anywhere A360 ",
+"version": "",
+"comentarios": "Plataforma de ejecución RPA en entorno web."
+},
+{
+"nombre": "SharePoint ",
+"version": "Office 365 ",
+"comentarios": "Repositorio de validación de datos y carpetas de empleados."
+},
+{
+"nombre": "Excel ",
+"version": "Office 365 ",
+"comentarios": "Aplicación base para los archivos Input y Output y macros."
+},
+{
+"nombre": "SMTP ",
+"version": "Office 365 ",
+"comentarios": "Envío de notificaciones por correo electrónico."
+}
+],
+"diagrama_pasos": "graph TD\nSTART([START]) --> main[ATW_Legajos y Formularios_Main_V1]\nmain --> setup[ATW_Legajos y formularios_Setup]\nsetup --> config[ATW_Legajos y formularios_Config]\nconfig --> sp[ATW_Legajos y formularios_Sharepoint]\nsp --> val[ATW_Legajos y formularios_SP_Validaciones]\nval --> rep[ATW_Legajos y formularios_Report]\nrep --> notif[ATW_Legajos y formularios_Notificaciones]\nnotif --> END([END])\nclassDef comun fill:#add8e6,stroke:#333,stroke-width:2px;\nclassDef propio fill:#ffff99,stroke:#333,stroke-width:2px;\nclass main,setup,config,notif comun;\nclass sp,val,rep propio;",
+"diagrama_detalle": "graph TD\nSTART([START]) --> excel[Leer Excel Input]\nexcel --> sp[Conectar SharePoint]\nsp --> loop[Loop Empleado]\nloop --> dec1{Existe Carpeta?}\ndec1 -- NO --> out1[Registrar No posee carpeta]\nout1 --> nextE[Siguiente Empleado]\ndec1 -- SI --> list[Leer Archivos en Carpeta]\nlist --> loopD[Loop Documento]\nloopD --> dec2{Existe?}\ndec2 -- NO --> out2[Registrar Archivo Faltante]\nout2 --> nextD[Siguiente Doc]\ndec2 -- SI --> dec3{Nomenclatura y -vf Correcto?}\ndec3 -- NO --> out3[Registrar Erróneo]\nout3 --> nextD\ndec3 -- SI --> out4[Registrar Correcto]\nout4 --> nextD\nnextD --> loopD\nnextD -- Fin --> decBaja{Es Baja?}\ndecBaja -- SI --> mac1[Ejecutar MACRO ALTAS]\nmac1 --> nextE\ndecBaja -- NO --> nextE\nnextE --> loop\nnextE -- Fin --> rep[Generar y Guardar Output]\nrep --> mac2[Ejecutar Limpieza y VBA MACROS]\nmac2 --> mail[Enviar Correo]\nmail --> END([END])",
+"archivos": [
+{
+"nombre": "D-TM-BA-Control Monitor Profiles.xlsx ",
+"comentarios": "Archivo de entrada que contiene la base de empleados a revisar y la parametrización de nombres de documentos.",
+"nomenclatura": "D-TM-BA-Control Monitor Profiles.xlsx "
+},
+{
+"nombre": "Legajos y formularios Output.xlsx ",
+"comentarios": "Archivo generado por el bot que consolida el estado de la verificación por cada documento y empleado.",
+"nomenclatura": "Legajos y formularios Output.xlsx "
+}
+],
+"requisitos": [
+{
+"requisito": "La cuenta del bot debe tener permisos de lectura sobre las carpetas de Legajos Digitales Activos e Inactivos, y escritura en Logs del Bot."
+},
+{
+"requisito": "El archivo de configuración ATW_Legajos y formularios_Config.xlsx debe existir y no estar bloqueado."
+}
+],
+"ejecucion": "Este Bot se ejecutará a demanda .\nRequiere que el usuario ingrese al Control Room de Automation Anywhere e inicie la tarea ATW_Legajos y Formularios_Main_V1 asignando al usuario botrunner1.",
+"reejecucion": "En caso de falla técnica (ej. error de generación de archivo de salida o bloqueo de archivo de configuración), el equipo de soporte debe validar permisos, liberar los archivos bloqueados y solicitar al usuario funcional que ejecute nuevamente el proceso desde el inicio de forma manual .\nNo se requieren pasos adicionales de restauración de datos ya que el bot ejecuta una macro de limpieza del archivo de salida al comenzar.",
+"macros": [
+{
+"nombre": "Limpieza Output.xlsm ",
+"entorno": "Excel Externo",
+"funciones": [
+{
+"nombre": "Limpieza_Output",
+"resumen": "Ejecución de macro de limpieza para eliminación de registros previos antes de la carga de nuevos datos."
+}
+],
+"condiciones": "Apertura inicial del archivo Output."
+},
+{
+"nombre": "MACRO ALTAS - .xlsm ",
+"entorno": "Excel Externo",
+"funciones": [
+{
+"nombre": "Macro_Altas",
+"resumen": "Escribe el caracter '-' en los documentos de Baja correspondientes a los empleados que poseen estado de Alta."
+}
+],
+"condiciones": "Que el empleado haya completado la revisión de documentos y que su estado no sea Baja."
+},
+{
+"nombre": "VBA MACROS.xlsm ",
+"entorno": "Excel Externo",
+"funciones": [
+{
+"nombre": "Escribe_Pendiente",
+"resumen": "Escribe la palabra 'pendiente' si la celda no fue rellenada anteriormente por el bot durante el flujo principal."
+}
+],
+"condiciones": "Finalización de la validación de todos los empleados, previo al envío del correo final."
+}
+]
 }

@@ -49,10 +49,18 @@ def generate_SDD(tpl, context):
         texto_original = tarea.get("descripcionExacta", "")
         # Reemplazamos el string por el objeto RichText
         tarea["descripcionExacta"] = format_richtext(texto_original)
+        
+    # Formateo ejecucion y reejecucion
+    for campo in ["ejecucion", "reejecucion"]:
+        if campo in context and isinstance(context[campo], str):
+            context[campo] = format_richtext(context[campo])
     
     # Genero la imagen del diagrama de pasos
     generar_imagen(field="diagrama_pasos", height=7.87, tpl=tpl, context=context)
 
+    # Genero la imagen del diagrama de bajo nivel
+    generar_imagen(field="diagrama_detalle", height=8.7, tpl=tpl, context=context)
+    
     tpl.render(context)
 
     buffer = BytesIO()
@@ -200,7 +208,7 @@ def generar_imagen(field=None, height=5, tpl=None, context=None):
 
         # Crear .mmd temporal
         with open(mmd_path, "w", encoding="utf-8") as f:
-            f.write(mermaidCode)
+            f.write("%%{init: {\"theme\": \"neutral\", \"flowchart\": {\"curve\": \"stepAfter\", \"rankSpacing\": 40}}}%%\n" + mermaidCode + "\nlinkStyle default stroke-width:4px;")
 
         # Generar imagen
         subprocess.run(
