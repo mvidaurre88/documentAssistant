@@ -1,47 +1,67 @@
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
 from docx import Document
 from docx.oxml import OxmlElement
-from docx.shared import RGBColor
+from docx.shared import *
 from docx.oxml.ns import qn
 from word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
 import json
-from jinja2 import Undefined, Environment
+import os
+from jinja2 import Undefined
 import streamlit as st
-from docx.shared import Inches
+import subprocess
+import tempfile
+from io import BytesIO
 
-class KeepUndefined(Undefined):
-    def __str__(self):
-        return f"{{{{{self._undefined_name}}}}}"
-    def __repr__(self):
-        return f"{{{{{self._undefined_name}}}}}"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def crear_subdoc_fase(tpl, fase):
-    """Crea un subdocumento con título + tabla para una fase."""
-    sd = tpl.new_subdoc()
-    sd.add_paragraph(fase["tituloFase"], style="Heading 2")
-    tabla = sd.add_table(rows=1, cols=4)
-    set_col_widths(tabla, [Cm(0.6), Cm(2.0), Cm(3.3), Cm(0.9)])
-    tabla.style = 'Table Grid'
-    headers = ["N°", "Acción", "Detalle", "Excepción"]
-    for i, h in enumerate(headers):
-        tabla.rows[0].cells[i].text = h
-    for paso in fase["pasos"]:
-        row = tabla.add_row()
-        #row.cells[0].text = paso["numero"]
-        row.cells[1].text = paso["accion"]
-        row.cells[2].text = paso["detalle"]
-        #row.cells[3].text = paso.get("excepcion_numero", "")
-    return sd
-
-def generate_docx(jsonText):
+# -- Función principal para generar el documento -------------------------------------------------------
+def generate_docx(jsonText, document=None, mode=None):    
     
-    # Cargo el template
-    tpl = DocxTemplate(r"C:\Users\mvidaurre\Desktop\RPA\documentAssistant\templatePDD.docx")
+    # -- Cargo el template -----------------------------------------------------------------------------
+    if document is not None:
+        tpl = DocxTemplate(os.path.join(BASE_DIR, "templates", document + ".docx"))
+    else:
+        st.error("Error 500: Ocurrió un error con el template del documento")
+        return
 
-    # Cargo el JSON obtenido
+    # -- Cargo el JSON obtenido ------------------------------------------------------------------------
     if (jsonText is not None):
         context = json.loads(jsonText)
+    else:
+        st.error("Error 500: Ocurrió un error al obtener la respuesta de la IA")
+        return
 
+    # -- Reviso si es PDD o SDD y genero el archivo ----------------------------------------------------
+    if document == "SDD":
+        buffer = generate_SDD(tpl, context)
+    elif document == "PDD":
+        buffer = generate_PDD(tpl, context)
+    else:
+        st.error("Error 500: Tipo de documento no soportado")
+        return   
+    st.session_state.doc_buffer = buffer 
+
+# -- Funcion para generar SDD --------------------------------------------------------------------------
+def generate_SDD(tpl, context):
+    
+    # Formateo todos los campos que tengan richText
+    for tarea in context.get("solucionTecnicaDetallada", []):
+        texto_original = tarea.get("descripcionExacta", "")
+        # Reemplazamos el string por el objeto RichText
+        tarea["descripcionExacta"] = format_richtext(texto_original)
+    
+    # Genero la imagen del diagrama de pasos
+    generar_imagen(field="diagrama_pasos", height=7.87, tpl=tpl, context=context)
+
+    tpl.render(context)
+
+    buffer = BytesIO()
+    tpl.save(buffer)
+    buffer.seek(0)
+
+    return buffer
+
+def generate_PDD(tpl, context):
     # Formateo todos los campos que tengan richText
     campos_richtext = ["propositoProceso"]
     for campo in campos_richtext:
@@ -87,9 +107,12 @@ def generate_docx(jsonText):
             context[var] = f"{{{{{var}}}}}"
 
     tpl.render(context)
-    tpl.save(r"C:\Users\mvidaurre\Desktop\RPA\output.docx")
+    
+    buffer = BytesIO()
+    tpl.save(buffer)
+    buffer.seek(0)
 
-    doc = Document(r"C:\Users\mvidaurre\Desktop\RPA\output.docx")
+    doc = Document(buffer)
 
     # Insertar tabla después de cada título de fase
     for fase in fases_data:
@@ -133,19 +156,63 @@ def generate_docx(jsonText):
         elif "Escenario" in primera_fila or "Excepción" in primera_fila:
             set_col_widths(tabla, WIDTHS_EXCEPCIONES)
     
-    st.session_state.output_path = r"C:\Users\mvidaurre\Desktop\RPA\output.docx"
+    output_buffer = BytesIO()
+    doc.save(output_buffer)
+    output_buffer.seek(0)
     
-    doc.save(r"C:\Users\mvidaurre\Desktop\RPA\output.docx")
+    return output_buffer
+    
+class KeepUndefined(Undefined):
+    def __str__(self):
+        return f"{{{{{self._undefined_name}}}}}"
+    def __repr__(self):
+        return f"{{{{{self._undefined_name}}}}}"
 
-from docx.shared import Cm
+def crear_subdoc_fase(tpl, fase):
+    """Crea un subdocumento con título + tabla para una fase."""
+    sd = tpl.new_subdoc()
+    sd.add_paragraph(fase["tituloFase"], style="Heading 2")
+    tabla = sd.add_table(rows=1, cols=4)
+    set_col_widths(tabla, [Cm(0.6), Cm(2.0), Cm(3.3), Cm(0.9)])
+    tabla.style = 'Table Grid'
+    headers = ["N°", "Acción", "Detalle", "Excepción"]
+    for i, h in enumerate(headers):
+        tabla.rows[0].cells[i].text = h
+    for paso in fase["pasos"]:
+        row = tabla.add_row()
+        #row.cells[0].text = paso["numero"]
+        row.cells[1].text = paso["accion"]
+        row.cells[2].text = paso["detalle"]
+        #row.cells[3].text = paso.get("excepcion_numero", "")
+    return sd
 
 def set_col_widths(tabla, widths):
     for row in tabla.rows:
         for i, cell in enumerate(row.cells):
             cell.width = widths[i]
+            
+def generar_imagen(field=None, height=5, tpl=None, context=None):
+    mermaidCode = context.get(field)
 
-def main():
-    generate_docx()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mmd_path = f"{tmpdir}/diagrama.mmd"
+        png_path = f"{tmpdir}/diagrama.png"
 
-if __name__ == "__main__":
-    main()
+        # Crear .mmd temporal
+        with open(mmd_path, "w", encoding="utf-8") as f:
+            f.write(mermaidCode)
+
+        # Generar imagen
+        subprocess.run(
+            f"mmdc -i {mmd_path} -o {png_path} -w 1200 -H 600",
+            shell=True,
+            check=True
+        )
+
+        with open(png_path, "rb") as f:
+            image_stream = BytesIO(f.read())
+            
+    # Insertar imagen
+    image = InlineImage(tpl, image_descriptor=image_stream, height=Inches(height))
+    context[field] = image
+    

@@ -1,6 +1,6 @@
 import streamlit as st
 from navigation import go_to
-from builder import render_stepper
+from components.stepper import render_stepper
 
 def top_bar(title="", back_to=None, show_stepper=False, step=0):
 
@@ -19,7 +19,7 @@ def top_bar(title="", back_to=None, show_stepper=False, step=0):
             if show_stepper:
                 render_stepper(st, step)
 
-        if(title is not ""):
+        if(title != ""):
             st.markdown(
                 f"<h3 style='text-align:center; margin-bottom: 30px;'>{title}</h3>",
                 unsafe_allow_html=True

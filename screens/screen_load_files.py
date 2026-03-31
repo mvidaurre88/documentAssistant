@@ -16,6 +16,9 @@ def screen_load_files():
     files = st.file_uploader("Subí acá los demas archivos (screenshots, transcripciones, etc):", type=["pdf", "png", "txt", "docx"], accept_multiple_files=True)
     st.session_state.files = files
 
+    print(st.session_state.doc_type)
+    print(st.session_state.mode)
+
     col_center = st.columns([3,1,3])[1]
 
     with col_center:

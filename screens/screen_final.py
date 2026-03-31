@@ -11,18 +11,14 @@ def screen_final():
 
     st.success("Documento generado correctamente 🎉")
     
-    if "output_path" in st.session_state:
-        path = st.session_state.output_path
-        nombre_archivo = os.path.basename(path)
-
-        with open(path, "rb") as f:
-            st.download_button(
-                label="⬇️ Descargar documento",
-                data=f,
-                file_name=nombre_archivo,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True,
-            )
+    if "doc_buffer" in st.session_state:
+        st.download_button(
+            label="⬇️ Descargar documento",
+            data=st.session_state.doc_buffer,
+            file_name="output.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+        )
     
     
     

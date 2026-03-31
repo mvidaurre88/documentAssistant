@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-from builder import render_stepper
 from navigation import *
 
 # -- PANTALLA INICIAL ------------------------------------------------------------------------------

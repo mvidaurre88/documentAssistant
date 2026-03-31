@@ -29,7 +29,7 @@ def screen_connect_ai():
     # ACTUO SEGUN EL AMBIENTE
     if(env == "DESA"):
         time.sleep(5)
-        with open(os.path.join(BASE_DIR, "ejemplo.json"), "r", encoding="utf-8") as f:
+        with open(os.path.join(BASE_DIR, "ejemplo copy.json"), "r", encoding="utf-8") as f:
             response = f.read()
     elif(env == "PROD"):
         with st.spinner(""):
@@ -51,8 +51,13 @@ def process_with_ai(files):
                 tmp.write(f.getbuffer())
             file_paths.append(path)
 
+        # DEFINO QUE PROMPT USAR
+        type = st.session_state.doc_type
+        mode = st.session_state.mode
+        prompt_path = os.path.join(BASE_DIR, "prompts", type + "_" + mode + ".txt")
+        
         response = send_to_gemini(
-            prompt_path="prompt v1.txt",
+            prompt_path=prompt_path,
             file_paths=file_paths,
             api_key=api_key,
             max_tokens=65536,

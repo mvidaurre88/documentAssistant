@@ -16,8 +16,9 @@ def screen_select_document():
     
     # BOTON TIPO DOCUMENTO
     col_center = st.columns([1,2,1])[1]
+    types = {"📄 PDD": "PDD","📄 SDD": "SDD",}
     with col_center:
-        doc_type = st.radio("Tipo de documento", ["📄 PDD", "📄 SDD"], horizontal=True, label_visibility="collapsed")
+        doc_type = st.radio("Tipo de documento", list(types.keys()), horizontal=True, label_visibility="collapsed")
     
 
     # TITULO 2
@@ -25,11 +26,12 @@ def screen_select_document():
     
     # BOTON MODO
     col_center = st.columns([1,2,1])[1]
+    modes = {"Generar nuevo documento": "new","Modificar existente": "modify",}
     with col_center:
-        mode = st.radio("modo", ["Generar nuevo documento" ,"Modificar existente"], horizontal=True, label_visibility="collapsed")
+        mode = st.radio("modo", list(modes.keys()), horizontal=True, label_visibility="collapsed")
 
-    st.session_state.doc_type = doc_type
-    st.session_state.mode = mode
+    st.session_state.doc_type = types[doc_type]
+    st.session_state.mode = modes[mode]
 
     # BOTÓN AVANZAR
     st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
@@ -38,40 +40,4 @@ def screen_select_document():
 
     with col_center:
         if st.button("Avanzar paso", use_container_width=True):
-
-            if not st.session_state.doc_type:
-                st.warning("Seleccioná un tipo de documento.")
-                return
-
-            if not st.session_state.mode:
-                st.warning("Seleccioná una opción.")
-                return
-
             go_to("load")
-            
-def card_button(label, value, key, icon="📄"):
-    selected = st.session_state.get(key) == value
-
-    class_name = "card-btn selected" if selected else "card-btn"
-
-    if st.button(
-        f"{icon}\n\n{label}",
-        key=f"{key}_{value}",
-        use_container_width=True
-    ):
-        st.session_state[key] = value
-
-    # aplicar estilo dinámico
-    st.markdown(
-        f"""
-        <script>
-        const btns = window.parent.document.querySelectorAll('button');
-        btns.forEach(btn => {{
-            if (btn.innerText.includes("{label}")) {{
-                btn.classList.add("{class_name}");
-            }}
-        }});
-        </script>
-        """,
-        unsafe_allow_html=True
-    )

@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-from builder import *
 from router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -146,6 +145,7 @@ def inject_css():
     </style>
     """, unsafe_allow_html=True)
 
+# -- CSS GLOBAL PARA LA APP ------------------------------------------------------------------------
 inject_css()
 
 # -- CONFIGURACIÓN INICIAL -------------------------------------------------------------------------

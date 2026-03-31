@@ -30,7 +30,7 @@ def screen_verify():
 
     if st.button("Generar documento", use_container_width=True):
         try:
-            generate_docx(json.dumps(st.session_state.form_data))
+            generate_docx(json.dumps(st.session_state.form_data), st.session_state.doc_type, st.session_state.mode)
             go_to("final")
         except Exception as e:
             st.error(f"Error al generar: {e}")
