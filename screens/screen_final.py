@@ -19,6 +19,13 @@ def screen_final():
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
         )
+        
+    st.markdown("""
+        ### ⚠️ Aclaraciones
+
+        - Los diagramas generados son automáticos y pueden contener imprecisiones.  
+        - Se recomienda utilizarlos como guía y validarlos antes de su uso final.
+        """)
     
     
     

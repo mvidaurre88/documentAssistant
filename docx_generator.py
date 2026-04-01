@@ -70,11 +70,18 @@ def generate_SDD(tpl, context):
     return buffer
 
 def generate_PDD(tpl, context):
+    
     # Formateo todos los campos que tengan richText
     campos_richtext = ["propositoProceso"]
     for campo in campos_richtext:
         if campo in context and isinstance(context[campo], str):
             context[campo] = format_richtext(context[campo])
+
+    # Genero la imagen del diagrama de pasos
+    generar_imagen(field="diagramaAltoNivel", height=6, tpl=tpl, context=context)
+
+    # Genero la imagen del diagrama de bajo nivel
+    generar_imagen(field="diagramaBajoNivel", height=7.87, tpl=tpl, context=context)
 
     # Formateo las excepciones
     excepciones = context.get("excepciones", [])
@@ -86,7 +93,7 @@ def generate_PDD(tpl, context):
     context["excepcionesNeg"] = excepcionesNeg
 
     mapa_excepciones = {e["escenario"]: e["numero"] for e in excepciones}
-    fases_data = context["fases"]
+    fases_data = context.get("fases", [])
     
     # Enumerar pasos y agregar número de excepción desde el mapa
     paso_counter = [1]
@@ -202,6 +209,9 @@ def set_col_widths(tabla, widths):
 def generar_imagen(field=None, height=5, tpl=None, context=None):
     mermaidCode = context.get(field)
 
+    if not mermaidCode:
+        return
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         mmd_path = f"{tmpdir}/diagrama.mmd"
         png_path = f"{tmpdir}/diagrama.png"

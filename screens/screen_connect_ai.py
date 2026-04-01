@@ -29,7 +29,7 @@ def screen_connect_ai():
     # ACTUO SEGUN EL AMBIENTE
     if(env == "DESA"):
         time.sleep(5)
-        with open(os.path.join(BASE_DIR, "ejemplo copy.json"), "r", encoding="utf-8") as f:
+        with open(os.path.join(BASE_DIR, "ejemplo.json"), "r", encoding="utf-8") as f:
             response = f.read()
     elif(env == "PROD"):
         with st.spinner(""):
