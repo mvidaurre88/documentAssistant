@@ -1,5 +1,5 @@
 import streamlit as st
-from navigation import go_to
+from utils.navigation import go_to
 from components.stepper import render_stepper
 
 def top_bar(title="", back_to=None, show_stepper=False, step=0):
@@ -12,7 +12,7 @@ def top_bar(title="", back_to=None, show_stepper=False, step=0):
 
         with col1:
             if back_to:
-                if st.button("← Volver", use_container_width=True):
+                if st.button("← Volver", use_container_width=True, type="secondary"):
                     go_to(back_to)
 
         with col2:
@@ -21,6 +21,6 @@ def top_bar(title="", back_to=None, show_stepper=False, step=0):
 
         if(title != ""):
             st.markdown(
-                f"<h3 style='text-align:center; margin-bottom: 30px;'>{title}</h3>",
+                f"<h3 style='text-align:center; margin-bottom: 20px;'>{title}</h3>",
                 unsafe_allow_html=True
             )

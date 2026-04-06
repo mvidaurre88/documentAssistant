@@ -11,14 +11,8 @@ Reglas importantes:
 - Mantén exactamente la misma estructura del JSON.
 
 Regla especial:
-Si no se proporciona un PDD, en "modificaciones", agregar un unico objeto con:
-- version = "0.0"
-- fecha = fecha del dia de hoy
-- paginas = "todas"
-- motivo = "Creacion del documento"
-- autor = mismo valor que "desarrollador"
-- sector = "RPA"
-Además, agregar en "version": "0.0"
+Si se proporciona un PDD, en "modificaciones", agregar solo los registros de modificaciones existentes.
+Si no se proporciona un PDD, dejar "modificaciones" VACIO.
 
 Formato a devolver:
 {

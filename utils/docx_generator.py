@@ -3,7 +3,7 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.shared import *
 from docx.oxml.ns import qn
-from word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
+from utils.word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
 import json
 import os
 from jinja2 import Undefined
@@ -15,7 +15,7 @@ from io import BytesIO
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # -- Función principal para generar el documento -------------------------------------------------------
-def generate_docx(jsonText, document=None, mode=None):    
+def generate_docx(jsonText: dict, document=None, mode=None):    
     
     # -- Cargo el template -----------------------------------------------------------------------------
     if document is not None:
@@ -24,18 +24,11 @@ def generate_docx(jsonText, document=None, mode=None):
         st.error("Error 500: Ocurrió un error con el template del documento")
         return
 
-    # -- Cargo el JSON obtenido ------------------------------------------------------------------------
-    if (jsonText is not None):
-        context = json.loads(jsonText)
-    else:
-        st.error("Error 500: Ocurrió un error al obtener la respuesta de la IA")
-        return
-
     # -- Reviso si es PDD o SDD y genero el archivo ----------------------------------------------------
     if document == "SDD":
-        buffer = generate_SDD(tpl, context)
+        buffer = generate_SDD(tpl, jsonText)
     elif document == "PDD":
-        buffer = generate_PDD(tpl, context)
+        buffer = generate_PDD(tpl, jsonText)
     else:
         st.error("Error 500: Tipo de documento no soportado")
         return   
@@ -69,7 +62,7 @@ def generate_SDD(tpl, context):
 
     return buffer
 
-def generate_PDD(tpl, context):
+def generate_PDD(tpl, context: dict):
     
     # Formateo todos los campos que tengan richText
     campos_richtext = ["propositoProceso"]
@@ -81,7 +74,7 @@ def generate_PDD(tpl, context):
     generar_imagen(field="diagramaAltoNivel", height=6, tpl=tpl, context=context)
 
     # Genero la imagen del diagrama de bajo nivel
-    generar_imagen(field="diagramaBajoNivel", height=7.87, tpl=tpl, context=context)
+    generar_imagen(field="diagramaBajoNivel", height=8, tpl=tpl, context=context)
 
     # Formateo las excepciones
     excepciones = context.get("excepciones", [])
@@ -207,9 +200,9 @@ def set_col_widths(tabla, widths):
             cell.width = widths[i]
             
 def generar_imagen(field=None, height=5, tpl=None, context=None):
-    mermaidCode = context.get(field)
+    mermaidCode = context.get(field, "")
 
-    if not mermaidCode:
+    if mermaidCode == "":
         return
     
     with tempfile.TemporaryDirectory() as tmpdir:

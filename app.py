@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from router import get_screens
+from utils.router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCREENS = get_screens(BASE_DIR)
@@ -11,6 +11,25 @@ def inject_css():
 
     /*App general*/
     .stApp { background-color: #3c3c3c; font-family: Consolas, monospace;}
+
+    .main .block-container {
+        padding-bottom: 0rem !important;
+        padding-top: 1rem !important;
+        max-width: 100% !important;
+    }
+
+    section[data-testid="stMain"] {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    
+    .block-container {
+        padding-bottom: 0 !important;
+    }
+
+    div[data-testid="stVerticalBlock"] {
+        gap: 0rem !important;
+    }
 
     /* Botones */
     .stButton>button {
@@ -35,6 +54,18 @@ def inject_css():
         background-color: #b36500;
     }
 
+    section[data-testid="stMain"] div[data-testid="stButton"] button[kind="secondary"] {
+        background-color: transparent !important;
+        color: #aaa !important;
+        border: 1px solid #aaa !important;
+        padding: 4px 10px !important;
+    }
+    
+    section[data-testid="stMain"] div[data-testid="stButton"] button[kind="secondary"]:hover {
+        color: #e68200 !important;
+        border-color: #e68200 !important;
+    }
+        
     /* Inputs */
     input, textarea {
         background-color: #2d2d2d !important;
@@ -83,7 +114,6 @@ def inject_css():
         margin-bottom: 0rem !important;
     }
 
-    /* Markdown spacing */
     .stMarkdown {
         margin-bottom: 0rem !important;
     }
@@ -97,6 +127,12 @@ def inject_css():
         border-bottom: 1px solid #555;
     }
 
+    div[data-testid="stAlert"] {
+        margin-top: 15px !important;
+        margin-bottom: 10px !important;
+    }
+
+
     .top-bar h3 {
         margin: 0;
     }
@@ -108,7 +144,7 @@ def inject_css():
     /* Cada opción */
     div[role="radiogroup"] label {
         background-color: #2d2d2d;
-        padding: 20px;
+        padding: 40px;
         margin: 5px;
         border-radius: 10px;
         border: 2px solid transparent;
@@ -142,6 +178,19 @@ def inject_css():
         display: flex;
         justify-content: center;
     }
+    
+    div.btn-delete button {
+        background-color: transparent !important;
+        color: #aaa !important;
+        border: 1px solid #ddd !important;
+        font-size: 12px !important;
+    }
+    
+    div.btn-delete button:hover {
+        color: red !important;
+        border-color: red !important;
+    }
+    
     </style>
     """, unsafe_allow_html=True)
 

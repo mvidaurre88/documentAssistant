@@ -1,6 +1,5 @@
-import streamlit as st
-import os
-from navigation import *
+import os, streamlit as st
+from utils.navigation import *
 
 # -- PANTALLA INICIAL ------------------------------------------------------------------------------
 def screen_init(BASE_DIR):
@@ -13,5 +12,5 @@ def screen_init(BASE_DIR):
  
     col_center = st.columns([2,1,2])[1]
     with col_center:
-        if st.button("Comenzar", use_container_width=True):
+        if st.button("Comenzar", use_container_width=True, type="primary"):
              go_to("select")

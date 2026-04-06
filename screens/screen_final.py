@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-from navigation import *
+from utils.navigation import *
 from components.top_bar import top_bar
-from docx_generator import *
+from utils.docx_generator import *
 
 # -- PASO 5 ----------------------------------------------------------------------------------------
 def screen_final():
@@ -18,11 +18,11 @@ def screen_final():
             file_name="output.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
+            type="primary"
         )
         
     st.markdown("""
         ### ⚠️ Aclaraciones
-
         - Los diagramas generados son automáticos y pueden contener imprecisiones.  
         - Se recomienda utilizarlos como guía y validarlos antes de su uso final.
         """)

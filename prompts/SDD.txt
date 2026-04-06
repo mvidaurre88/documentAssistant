@@ -17,10 +17,12 @@ Instrucciones de Análisis:
 Reglas de Formato:
 - Devuelve ÚNICAMENTE el JSON.
 - Si no hay información para un campo, usa "" o [].
-- Fechas en formato dd/mm/yyyy.
-- En versión, usá siempre version: "0.0".
 - No incluyas referencias, citas ni etiquetas del tipo en los valores del JSON.
 - Si pones comillas, ponelas así \" para que no se rompa el JSON.
+
+Regla especial:
+Si se proporciona un SDD, en "modificaciones", agregar solo los registros de modificaciones existentes.
+Si no se proporciona un SDD, dejar "modificaciones" VACIO.
 
 Estructura JSON (SDD Técnico)
 {
@@ -28,14 +30,12 @@ Estructura JSON (SDD Técnico)
   "nombreBot": "<Nombre del Bot.>",
   "cliente": "<Empresa para la cual el Bot es creado>",
   "desarrollador": "<Nombre del desarrollador>",
-  "fecha": "<Fecha de hoy>",
-  "version": "<Version>",
   "modificaciones": [
     {
       "version": "<Version>",
-      "fecha": "<Fecha de hoy>",
-      "paginas": "todas",
-      "motivo": "Creación de documento SDD",
+      "fecha": "<Fecha>",
+      "paginas": "<Paginas afectadas>",
+      "motivo": "<motivo de la modificacion>",
       "autor": "<Nombre del desarrollador>",
       "rol": "Desarrollador",
       "sector": "RPA"

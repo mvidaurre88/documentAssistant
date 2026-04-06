@@ -1,29 +1,28 @@
 import streamlit as st
 from components.top_bar import top_bar
-from navigation import *
+from utils.navigation import *
 
 def screen_load_files():
     
     # BARRA DE NAVEGACION
-    top_bar(title="Ingrese archivos para analizar", back_to="select", show_stepper=True, step=1)
-
-    # VERIFICO SI ES UN ARCHIVO NUEVO O SE BUSCA MODIFICAR UNO EXISTENTE
-    if st.session_state.mode == "Modificar existente":     
-        file = st.file_uploader("Subí acá el archivo a modificar o actualizar (PDD o SDD):", type=["pdf", "docx"], accept_multiple_files=False)
-        st.session_state.file = file
+    top_bar(title="Ingrese los archivos para analizar", back_to="select", show_stepper=True, step=1)
         
     # CARGADOR DE ARCHIVOS
-    files = st.file_uploader("Subí acá los demas archivos (screenshots, transcripciones, etc):", type=["pdf", "png", "txt", "docx"], accept_multiple_files=True)
+    files = st.file_uploader("", type=["pdf", "png", "txt", "docx", "py", "xlsm"], accept_multiple_files=True)
     st.session_state.files = files
 
-    print(st.session_state.doc_type)
-    print(st.session_state.mode)
-
+    # TEXTO INFORMATIVO
+    st.markdown(f"<h5 style='margin-top: 20px; margin-bottom: 10px;'>¿Que podes subir?</h5>", unsafe_allow_html=True)
+    st.markdown(f"<ul style='font-size: 13px;'><li>Documentación ya existente como el PDD/SDD anterior que quieras actualizar.</li><li>Transcripciones de entrevistas o reuniones relevantes.</li><li>Screenshots de sistemas, procesos o diagramas actuales.</li><li>Macros o codigo python que quieras incluir.</li></ul>", unsafe_allow_html=True)
+    
+    # BOTÓN AVANZAR
     col_center = st.columns([3,1,3])[1]
-
     with col_center:
-        if st.button("Avanzar paso", use_container_width=True):
-            if not files:
-                st.warning("Cargá al menos un archivo")
-            else:
-                    go_to("ai")
+        clicked = st.button("Avanzar paso", use_container_width=True, type="primary")
+    if clicked:
+        if not files:
+            st.warning("Cargá al menos un archivo")
+        else:
+            st.session_state.processing = True
+            st.empty()
+            go_to("ai")

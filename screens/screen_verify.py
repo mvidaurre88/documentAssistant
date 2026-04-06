@@ -1,16 +1,37 @@
 import streamlit as st
-import os
+import json, re, traceback, base64
 from datetime import date
-import json
-import re
-from navigation import *
+from utils.navigation import *
 from components.top_bar import top_bar
-from docx_generator import *
-import traceback
-
+from utils.docx_generator import *
 
 def screen_verify():
-    top_bar(title="Los datos generados son los siguientes", back_to="ai", show_stepper=True, step=3)
+    st.markdown("""
+    <style>
+        /* Espacio entre filas de campos */
+        div[data-testid="stHorizontalBlock"] {
+            margin-bottom: 8px;
+        }
+        
+        /* Espacio entre expanders */
+        div[data-testid="stExpander"] {
+            margin-bottom: 10px;
+        }
+        
+        /* Espacio interno de los expanders */
+        div[data-testid="stExpander"] > div > div {
+            padding-top: 8px;
+        }
+
+        /* Alinea verticalmente el label con el input */
+        div[data-testid="stHorizontalBlock"] > div:first-child p {
+            padding-top: 10px !important;
+            margin: 0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    top_bar(title="Los datos generados son los siguientes", back_to="load", show_stepper=True, step=3)
 
     raw = st.session_state.response
     if isinstance(raw, str):
@@ -18,6 +39,7 @@ def screen_verify():
         texto_limpio = re.sub(r'\\(?!n)', r'\\\\', texto_limpio)
         data = json.loads(texto_limpio)
         data = add_current_date(data)
+        data = generate_modify(data)
     else:
         data = raw
 
@@ -27,95 +49,182 @@ def screen_verify():
     #Muestro segun el tipo de documento
     doc_type = st.session_state.doc_type
     if(doc_type == "PDD"):
-        st.session_state.form_data = render_pdd(st.session_state.form_data)
+        render_pdd(st.session_state.form_data)
     elif(doc_type == "SDD"):
-        st.session_state.form_data = render_sdd(st.session_state.form_data)
+        render_sdd(st.session_state.form_data)
 
+    col_center = st.columns([3,1,3])[1]
+    with col_center:
+        if st.button("Avanzar paso", key="btn_generar", type="primary"):
+            try:
+                sanitized = sanitize_none(st.session_state.form_data)
+                generate_docx(sanitized, doc_type, st.session_state.mode)
+                go_to("final")
+            except Exception as e:
+                st.error(f"Error al generar: {e}")
+                st.code(traceback.format_exc())
 
-    if st.button("Generar documento", use_container_width=True):
-        try:
-            sanitized = sanitize_none(st.session_state.form_data)
-            generate_docx(json.dumps(sanitized), doc_type, st.session_state.mode)
-            go_to("final")
-        except Exception as e:
-            st.error(f"Error al generar: {e}")
-            st.code(traceback.format_exc())
+# FUNCION PARA RENDERIZAR EL PDD ----------------------------------------------------------------------
+def render_pdd(data: dict) -> dict:
+    
+    for field in ["entradas", "salidas", "contactos"]:
+        key = f"list_{field}"
+        if key not in st.session_state:
+            st.session_state[key] = st.session_state.form_data.get(field, [])
+    
+    # RENDERIZO LOS CAMPOS COMUNES ENTRE PDD Y SDD -----------------------------------------------------
+    render_common_fields(data)
 
+    # PROPOSITO DEL BOT --------------------------------------------------------------------------------
+    field_row("Objetivo del Bot", "propositoProceso", data, multiline=True, col_ratio=(1, 6.5))
+      
+    # INPUTS -------------------------------------------------------------------------------------------
+    st.markdown("<p style='margin: 0 0 25px 0;'><b>Archivos Input</b></p>", unsafe_allow_html=True)
+    with st.expander("Entradas", expanded=False):
+        to_delete = None
+        for i, entrada in enumerate(st.session_state.list_entradas):
+            col_field, col_btn = st.columns([6, 1])
+            with col_field:
+                st.session_state.list_entradas[i] = st.text_input(f"Entrada {i + 1}", value=entrada, key=f"entrada_{i}_input", label_visibility="collapsed")
+            with col_btn:
+                if st.button("✕", key=f"del_entrada_{i}", type="secondary"):
+                    to_delete = i
+        if to_delete is not None:
+            st.session_state.list_entradas.pop(to_delete)
+            st.rerun()
+        if st.button("+ Agregar entrada", key="add_entrada", type="secondary"):
+            st.session_state.list_entradas.append("")
+            st.rerun()
+    data["entradas"] = st.session_state.list_entradas
+    
+    # SALIDAS ------------------------------------------------------------------------------------------
+    st.markdown("<p style='margin: 0 0 25px 0;'><b>Archivos Output</b></p>", unsafe_allow_html=True)
+    with st.expander("Salidas", expanded=False):
+        to_delete = None
+        for i, salida in enumerate(st.session_state.list_salidas):
+            col_field, col_btn = st.columns([6, 1])
+            with col_field:
+                st.session_state.list_salidas[i] = st.text_input(
+                    f"Salida {i + 1}", value=salida,
+                    key=f"salida_{i}_input", label_visibility="collapsed"
+                )
+            with col_btn:
+                if st.button("✕", key=f"del_salida_{i}"):
+                    to_delete = i
+        if to_delete is not None:
+            st.session_state.list_salidas.pop(to_delete)
+            st.rerun()
+        if st.button("+ Agregar salida", key="add_salida"):
+            st.session_state.list_salidas.append("")
+            st.rerun()
+    data["salidas"] = st.session_state.list_salidas
+    
+    # CARPETAS -----------------------------------------------------------------------------------------
+    field_row("Ruta Compartida", "carpetaCompartida", data, col_ratio=(1, 6.5))
+    field_row("Ruta Output", "carpetaOutput", data, col_ratio=(1, 6.5))
+    field_row("Ruta Input", "carpetaInput", data, col_ratio=(1, 6.5))
+    
+    # CONTACTOS ----------------------------------------------------------------------------------------
+    st.markdown("<p style='margin: 0 0 25px 0;'><b>Contactos</b></p>", unsafe_allow_html=True)
+    with st.expander("Contactos", expanded=False):
+        to_delete = None
+        for i, contacto in enumerate(st.session_state.list_contactos):
+            col_field, col_btn = st.columns([6, 1])
+            with col_field:
+                st.session_state.list_contactos[i] = st.text_input(
+                    f"Contacto {i + 1}", value=contacto,
+                    key=f"contacto_{i}_input", label_visibility="collapsed"
+                )
+            with col_btn:
+                if st.button("✕", key=f"del_contacto_{i}"):
+                    to_delete = i
+        if to_delete is not None:
+            st.session_state.list_contactos.pop(to_delete)
+            st.rerun()
+        if st.button("+ Agregar contacto", key="add_contacto"):
+            st.session_state.list_contactos.append("")
+            st.rerun()
 
-def render_form(data, doc_type="", prefix=""):
-    result = {}
-    MULTILINE_THRESHOLD = 60
+    data["contactos"] = st.session_state.list_contactos
 
-    for key, value in data.items():
-        label_text = ""   # ← label legible
-        field_key = f"field_{prefix}{key}"
+    # FORMA DE EJECUCION -------------------------------------------------------------------------------
+    field_row("Forma de Ejecución", "ejecucion", data, multiline=True, col_ratio=(1, 6.5))
+    
+    # FASES --------------------------------------------------------------------------------------------
+    st.markdown("<p style='margin: 0 0 25px 0;'><b>Ejecución paso a paso</b></p>", unsafe_allow_html=True)
+    fases = data.get("fases", [])
+    for i, fase in enumerate(fases):
+        with st.expander(f"Fase {i + 1} - {fase.get('tituloFase', '')}", expanded=False):
+            pasos = fase.get("pasos", [])
+            for j, paso in enumerate(pasos):
+                with st.expander(f"Paso {j + 1} - {paso.get('accion', '')}", expanded=True):
+                    field_row("Detalle", "detalle", paso, key_prefix=f"fase_{i}_paso_{j}_", multiline=True, col_ratio=(1, 7))
+                    field_row("Excepción", "excepcion_escenario", paso, key_prefix=f"fase_{i}_paso_{j}_", col_ratio=(1, 7))
 
-        if value is None:
-            value = ""
+    # EXCEPCIONES ---------------------------------------------------------------------------------------
+    st.markdown("<p style='margin: 0 0 25px 0;'><b>Excepciones</b></p>", unsafe_allow_html=True)
+    for i, excepcion in enumerate(data.get("excepciones", [])):
+        with st.expander(f"Excepción {i + 1} - {excepcion.get('escenario', '')}", expanded=False):
+            double_field_row("Numero", "numero", "Tipo", "tipo", excepcion, key_prefix=f"excepcion_{i}_")
+            field_row("Descripción", "accion", excepcion, key_prefix=f"excepcion_{i}_", multiline=True, col_ratio=(1, 6.5))
+    
+    # DIAGRAMAS -----------------------------------------------------------------------------------------
+    col_1, col_2, col_3, col_4 = st.columns([2, 2, 2, 2])
+    
+    with col_1:
+        st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Alto Nivel</b></p>", unsafe_allow_html=True)
+    with col_2:
+        img_bytes = st.session_state.get("diagramaAltoNivel")
+        if(img_bytes):
+            show_img(img_bytes)
+    with col_3:
+        st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Bajo Nivel</b></p>", unsafe_allow_html=True)
+    with col_4:
+        img_bytes = st.session_state.get("diagramaBajoNivel")
+        if(img_bytes):
+            show_img(img_bytes)
 
-        if isinstance(value, str):
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.markdown(f"**{label_text}**")
-            with col2:
-                if len(value) > MULTILINE_THRESHOLD:
-                    lines = (len(value) // 60) + value.count("\n") + 1
-                    height = max(100, lines * 22)
-                    result[key] = st.text_area("", value=value, key=field_key,
-                                               label_visibility="collapsed", height=height)
-                else:
-                    result[key] = st.text_input("", value=value, key=field_key,
-                                                label_visibility="collapsed")
+# FUNCION PARA RENDERIZAR EL SDD ----------------------------------------------------------------------
+def render_sdd(data: dict) -> dict:
+    
+    # RENDERIZO LOS CAMPOS COMUNES ENTRE PDD Y SDD -----------------------------------------------------
+    render_common_fields(data)
+    
+    # PROPOSITO DEL BOT --------------------------------------------------------------------------------
+    field_row("Objetivo del Bot", "procesoNegocioAltoNivel", data, multiline=True, col_ratio=(1, 6.5))
+    
+    # SOLUCION TECNICA ALTO NIVEL ----------------------------------------------------------------------
+    
 
-        elif isinstance(value, (int, float)):
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.markdown(f"**{label_text}**")
-            with col2:
-                result[key] = st.number_input("", value=value, key=field_key,
-                                              label_visibility="collapsed")
-
-        elif isinstance(value, bool):
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.markdown(f"**{label_text}**")
-            with col2:
-                result[key] = st.checkbox("", value=value, key=field_key,
-                                          label_visibility="collapsed")
-
-        elif isinstance(value, list):
-            if value and isinstance(value[0], dict):
-                st.markdown(f"**{label_text}**")
-                items = []
-                for i, item in enumerate(value):
-                    with st.expander(f"{label_text} [{i + 1}]", expanded=True):
-                        items.append(render_form(item, doc_type=doc_type,
-                                                 prefix=f"{prefix}{key}[{i}]."))
-                result[key] = items
-            else:
-                items = []
-                with st.expander(f"**{label_text}**", expanded=True):
-                    for i, item in enumerate(value):
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            st.markdown(f"**{i + 1}**")
-                        with col2:
-                            items.append(st.text_input("", value=str(item),
-                                                       key=f"{field_key}_{i}",
-                                                       label_visibility="collapsed"))
-                result[key] = items
-
-        elif isinstance(value, dict):
-            st.markdown(f"**{label_text}**")
-            with st.expander(label_text, expanded=False):
-                result[key] = render_form(value, doc_type=doc_type,
-                                          prefix=f"{prefix}{key}.")
+# FUNCION PARA ESTANDARIZAR FILAS DE DOS CAMPOS -------------------------------------------------------
+def double_field_row(label1, key1, label2, key2, data, key_prefix=""):
+    col_left, col_right = st.columns([1, 1])
+    with col_left:
+        field_row(label1, key1, data, key_prefix=key_prefix)
+    with col_right:
+        field_row(label2, key2, data, key_prefix=key_prefix)
+        
+# FUNCION PARA ESTANDARIZAR FILAS DE UN SOLO CAMPO ----------------------------------------------------
+def field_row(label, key, data, col_ratio=None, multiline=False, height=None, key_prefix=""):
+    ratio = col_ratio if col_ratio is not None else (1, 2.5)
+    if data is None:
+        data = {}
+    value = data.get(key, "") or ""
+    col1, col2 = st.columns(ratio)
+    with col1:
+        st.markdown(f"<p style='padding-top: 8px; margin: 0;'><b>{label}</b></p>", unsafe_allow_html=True)
+    with col2:
+        unique_key = f"field_{key_prefix}{key}" if key_prefix else f"field_{key}"
+        if multiline:
+            if height is None:
+                lines = (len(value) // 60) + value.count("\n") + 1
+                height = max(100, lines * 22) + 5
+            data[key] = st.text_area("", value=value, key=unique_key, label_visibility="collapsed", height=height)
         else:
-            result[key] = value
+            data[key] = st.text_input("", value=value, key=unique_key, label_visibility="collapsed")
+        return data[key]  
 
-    return result  # las claves siguen siendo las del JSON original ✓
-
-# Funcion para agregar la fecha actual
+# FUNCION PARA AGREGAR LA FECHA ACTUAL -----------------------------------------------------------------
 def add_current_date(json):
     today = date.today().strftime("%d/%m/%Y")
     json["fecha"] = today
@@ -125,8 +234,8 @@ def add_current_date(json):
                 if isinstance(item, dict):
                     item["fecha"] = today
     return json
-
-# Funcion para sanitizar los valores None
+            
+# FUNCION PARA REEMPLAZAR LOS VALORES NONE POR STRING VACIOS -------------------------------------------
 def sanitize_none(data):
     if isinstance(data, dict):
         return {k: sanitize_none(v) for k, v in data.items()}
@@ -136,138 +245,82 @@ def sanitize_none(data):
         return ""
     return data
 
-def render_pdd(data: dict) -> dict:
-    result = {}
-    
-    # Codigo y Nombre del Bot
-    col_left, col_right = st.columns([1,1])
-    with col_left:
-        field_row("Código del Bot", "codigoBot", data, result)
-    with col_right:
-        field_row("Nombre del Bot", "nombreBot", data, result)
-    
-    # Cliente y Desarrollador
-    col_left, col_right = st.columns([1,1])
-    with col_left:
-        field_row("Cliente", "cliente", data, result)
-    with col_right:
-        field_row("Desarrollador", "desarrollador", data, result)
-    
-    # Versión y Fecha
-    col_left, col_right = st.columns([1,1])
-    with col_left:
-        field_row("Versión", "version", data, result)
-    with col_right:
-        field_row("Fecha", "fecha", data, result)
-        
-    # Historial de Modificaciones
-    st.markdown(f"<p style='margin: 0 0 6px 0;'><b>Historial de Modificaciones</b></p>", unsafe_allow_html=True)
-    modificaciones_result = []
-    for i, mod in enumerate(data.get("modificaciones", [])):
-        with st.expander(f"Modificación {i + 1}", expanded=False):
-            mod_result = {}
-            
-            col_left, col_right = st.columns([1, 1])
-            with col_left:
-                field_row("Versión", "version", mod, mod_result, key_prefix=f"mod{i}_")
-            with col_right:
-                field_row("Fecha", "fecha", mod, mod_result, key_prefix=f"mod{i}_")
-        
-            col_left, col_right = st.columns([1, 1])
-            with col_left:
-                field_row("Área o sector", "sector", mod, mod_result, key_prefix=f"mod{i}_")
-            with col_right:
-                field_row("Autor", "autor", mod, mod_result, key_prefix=f"mod{i}_")
-            
-            field_row("Motivo modificación", "motivo", mod, mod_result, multiline=True, height=150, key_prefix=f"mod{i}_")
-
-            for key in mod:
-                if key not in mod_result:
-                    mod_result[key] = mod[key]
-            
-            modificaciones_result.append(mod_result)
-
-    result["modificaciones"] = modificaciones_result
-
-    # Historial de Revisión
-    if data.get("revision"):
-        st.markdown(f"<p style='margin: 0 0 6px 0;'><b>Historial de Revisión</b></p>", unsafe_allow_html=True)
-        revisiones_result = []
-        for i, mod in enumerate(data.get("revision", [])):
-            with st.expander(f"Revisión {i + 1}", expanded=False):
-                mod_result = {}
-            
-                # Versión y Aprobador    
-                col_left, col_right = st.columns([1, 1])
-                with col_left:
-                    field_row("Versión", "version", mod, mod_result, key_prefix=f"mod{i}_")
-                with col_right:
-                    field_row("Aprobador", "aprobador", mod, mod_result, key_prefix=f"mod{i}_")
-            
-                # Comentarios
-                field_row("Comentarios", "comentarios", mod, mod_result, multiline=True, height=150, key_prefix=f"mod{i}_")
-
-                for key in mod:
-                    if key not in mod_result:
-                        mod_result[key] = mod[key]
-            
-                revisiones_result.append(mod_result)
-        result["revision"] = revisiones_result
-
-    # Proposito del Bot
-    field_row("Objetivo del Bot", "propositoProceso", data, result, multiline=True, col_ratio=(1, 7))
-    
-    # Diagramas de Alto y Bajo Nivel
-    #col_label1, col_img1, col_label2, col_img2 = st.columns([1, 3, 1, 3])
-    #with col_label1:
-    #    st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Alto Nivel</b></p>", unsafe_allow_html=True)
-    #with col_img1:
-    #    preview_mermaid(data.get("diagramaAltoNivel"))
-    #with col_label2:
-    #    st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Bajo Nivel</b></p>", unsafe_allow_html=True)
-    #with col_img2:
-    #    preview_mermaid(data.get("diagramaBajoNivel"))  
-
-def field_row(label, key, data, result, col_ratio=None, multiline=False, height=None, key_prefix=""):
-    ratio = col_ratio if col_ratio is not None else (1, 3)
-    col1, col2 = st.columns(ratio)
-    with col1:
-        st.markdown(f"<p style='padding-top: 8px; margin: 0;'><b>{label}</b></p>", unsafe_allow_html=True)
-    with col2:
-        unique_key = f"field_{key_prefix}{key}" if key_prefix else f"field_{key}"
-        value = data.get(key, "") or ""
-        if multiline:
-            if height is None:
-                lines = (len(value) // 60) + value.count("\n") + 1
-                height = max(100, lines * 22) + 5
-            result[key] = st.text_area("", value=value,
-                                        key=unique_key, label_visibility="collapsed", height=height)
-        else:
-            result[key] = st.text_input("", value=value,
-                                         key=unique_key, label_visibility="collapsed")
-            
-def preview_mermaid(field, label=None):
-    mermaidCode = field
-    
-    if not mermaidCode:
+# FUNCION PARA MOSTRAR DIAGRAMA ------------------------------------------------------------------------
+def show_img(img_bytes):
+    if not img_bytes:
         return
 
-    if label:
-        st.markdown(f"<p style='margin: 0 0 6px 0;'><b>{label}</b></p>", unsafe_allow_html=True)
+    img_base64 = base64.b64encode(img_bytes).decode()
+
+    html = f"""
+    <div class="img-container">
+        <img src="data:image/png;base64,{img_base64}" />
+    </div>
+
+    <style>
+    .img-container {{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: visible;
+    }}
+
+    .img-container img {{
+        width: 250px;
+        border-radius: 12px;
+        border: 10px solid white;
+        box-shadow: -8px 8px 15px rgba(0,0,0,0.25);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+        transform-origin: right center
+        margin-bottom: 20px;
+    }}
+
+    .img-container img:hover {{
+        transform: scale(2);
+        box-shadow: -12px 12px 25px rgba(0,0,0,0.35);
+        position: relative;
+        z-index: 999;
+    }}
+    </style>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
+
+# FUNCION PARA GENERAR LA SECCION DE MODIFICACIONES ----------------------------------------------------      
+def generate_modify(data):
+    modificaciones = data.get("modificaciones", [])
+    fecha = data.get("fecha", "")
+    desarrollador = data.get("desarrollador", "")
     
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mmd_path = f"{tmpdir}/diagrama.mmd"
-            png_path = f"{tmpdir}/diagrama.png"
+    if modificaciones == []:
+        new_version = "0.0"
+        modificaciones.append({ "version": "0.0", "fecha": fecha, "paginas": "todas", "sector": "RPA", "autor": desarrollador, "motivo": "Creación de documento"})
+    else:
+        last_mod = modificaciones[-1]
+        new_version = str(float(last_mod.get('version', '0.0')) + 1)
+        modificaciones.append({ "version": new_version, "fecha": fecha, "paginas": "todas", "sector": "RPA", "autor": desarrollador, "motivo": "Actualización de documento"})    
+    
+    data["version"] = new_version
+    data["modificaciones"] = modificaciones
+    return data
 
-            with open(mmd_path, "w", encoding="utf-8") as f:
-                f.write('%%{init: {"theme": "neutral", "flowchart": {"curve": "stepAfter", "rankSpacing": 40}}}%%\n' + mermaidCode + "\nlinkStyle default stroke-width:4px;")
+# FUNCION PARA RENDERIZAR LOS CAMPOS COMUNES ENTRE PDD Y SDD -------------------------------------------
+def render_common_fields(data):
+    # CODIGO Y NOMBRE DEL BOT --------------------------------------------------------------------------
+    double_field_row("Código del Bot", "codigoBot", "Nombre del Bot", "nombreBot", data)
 
-            subprocess.run(
-                f"mmdc -i {mmd_path} -o {png_path} -w 1200 -H 600",
-                shell=True, check=True
-            )
-
-            st.image(png_path, use_container_width=True)
-    except Exception as e:
-        st.warning(f"No se pudo generar el preview: {e}")
+    # CLIENTE Y DESARROLLADOR --------------------------------------------------------------------------
+    double_field_row("Cliente", "cliente", "Desarrollador", "desarrollador", data)
+    
+    # VERSION Y FECHA ----------------------------------------------------------------------------------
+    double_field_row("Versión", "version", "Fecha", "fecha", data)
+    
+    # MODIFICACIÓN ACTUAL ------------------------------------------------------------------------------
+    st.markdown(f"<p style='margin: 0 0 25px 0;'><b>Modificación Actual</b></p>", unsafe_allow_html=True)
+    modificaciones = data.get("modificaciones", [])
+    if modificaciones:
+        with st.expander(f"Modificación", expanded=True):
+            double_field_row("Versión", "version", "Fecha", "fecha", modificaciones[-1], key_prefix="mod_last_")
+            double_field_row("Sector", "sector", "Autor", "autor", modificaciones[-1], key_prefix="mod_last_")
+            field_row("Motivo modificación", "motivo", modificaciones[-1], multiline=True, key_prefix="mod_last_")
