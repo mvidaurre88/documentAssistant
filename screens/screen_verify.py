@@ -1,9 +1,12 @@
-import streamlit as st
-import json, re, traceback, base64
+import io
+import json, re, traceback, base64, streamlit as st
+import streamlit.components.v1 as components
+from streamlit_image_zoom import image_zoom
 from datetime import date
 from utils.navigation import *
 from components.top_bar import top_bar
 from utils.docx_generator import *
+from PIL import Image
 
 def screen_verify():
     st.markdown("""
@@ -58,19 +61,57 @@ def screen_verify():
         if st.button("Avanzar paso", key="btn_generar", type="primary"):
             try:
                 sanitized = sanitize_none(st.session_state.form_data)
-                generate_docx(sanitized, doc_type, st.session_state.mode)
+                generate_docx(sanitized, doc_type, None)
                 go_to("final")
             except Exception as e:
                 st.error(f"Error al generar: {e}")
                 st.code(traceback.format_exc())
-
+    
 # FUNCION PARA RENDERIZAR EL PDD ----------------------------------------------------------------------
 def render_pdd(data: dict) -> dict:
     
     for field in ["entradas", "salidas", "contactos"]:
         key = f"list_{field}"
+        counter_key = f"{field}_counter"
         if key not in st.session_state:
-            st.session_state[key] = st.session_state.form_data.get(field, [])
+            raw = st.session_state.form_data.get(field, [])
+            st.session_state[key] = [
+                {"_id": j, **item} if isinstance(item, dict)
+                else {"_id": j, "value": str(item)}
+                for j, item in enumerate(raw)
+            ]
+            st.session_state[counter_key] = len(st.session_state[key])
+    
+    key = "list_fases"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("fases", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"tituloFase": str(item), "pasos": []}
+            else:
+                pasos_raw = item.get("pasos", [])
+                item["pasos"] = []
+                for p, paso in enumerate(pasos_raw):
+                    if not isinstance(paso, dict):
+                        paso = {"accion": str(paso), "detalle": "", "excepcion_escenario": ""}
+                    item["pasos"].append(paso)
+            item["_id"] = j
+            items.append(item)
+        st.session_state[key] = items
+    st.session_state["fases_counter"] = len(st.session_state[key])
+    
+    key = "list_excepciones"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("excepciones", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"escenario": str(item), "numero": "", "tipo": "", "accion": ""}
+            item["_id"] = j
+            items.append(item)
+        st.session_state[key] = items
+    st.session_state["excepciones_counter"] = len(st.session_state[key])
     
     # RENDERIZO LOS CAMPOS COMUNES ENTRE PDD Y SDD -----------------------------------------------------
     render_common_fields(data)
@@ -79,45 +120,10 @@ def render_pdd(data: dict) -> dict:
     field_row("Objetivo del Bot", "propositoProceso", data, multiline=True, col_ratio=(1, 6.5))
       
     # INPUTS -------------------------------------------------------------------------------------------
-    st.markdown("<p style='margin: 0 0 25px 0;'><b>Archivos Input</b></p>", unsafe_allow_html=True)
-    with st.expander("Entradas", expanded=False):
-        to_delete = None
-        for i, entrada in enumerate(st.session_state.list_entradas):
-            col_field, col_btn = st.columns([6, 1])
-            with col_field:
-                st.session_state.list_entradas[i] = st.text_input(f"Entrada {i + 1}", value=entrada, key=f"entrada_{i}_input", label_visibility="collapsed")
-            with col_btn:
-                if st.button("✕", key=f"del_entrada_{i}", type="secondary"):
-                    to_delete = i
-        if to_delete is not None:
-            st.session_state.list_entradas.pop(to_delete)
-            st.rerun()
-        if st.button("+ Agregar entrada", key="add_entrada", type="secondary"):
-            st.session_state.list_entradas.append("")
-            st.rerun()
-    data["entradas"] = st.session_state.list_entradas
+    data["entradas"]  = list_text_input_section("Archivos Input", "entradas", "Entrada")
     
     # SALIDAS ------------------------------------------------------------------------------------------
-    st.markdown("<p style='margin: 0 0 25px 0;'><b>Archivos Output</b></p>", unsafe_allow_html=True)
-    with st.expander("Salidas", expanded=False):
-        to_delete = None
-        for i, salida in enumerate(st.session_state.list_salidas):
-            col_field, col_btn = st.columns([6, 1])
-            with col_field:
-                st.session_state.list_salidas[i] = st.text_input(
-                    f"Salida {i + 1}", value=salida,
-                    key=f"salida_{i}_input", label_visibility="collapsed"
-                )
-            with col_btn:
-                if st.button("✕", key=f"del_salida_{i}"):
-                    to_delete = i
-        if to_delete is not None:
-            st.session_state.list_salidas.pop(to_delete)
-            st.rerun()
-        if st.button("+ Agregar salida", key="add_salida"):
-            st.session_state.list_salidas.append("")
-            st.rerun()
-    data["salidas"] = st.session_state.list_salidas
+    data["salidas"] = list_text_input_section("Archivos Output", "salidas", "Salida")
     
     # CARPETAS -----------------------------------------------------------------------------------------
     field_row("Ruta Compartida", "carpetaCompartida", data, col_ratio=(1, 6.5))
@@ -125,32 +131,13 @@ def render_pdd(data: dict) -> dict:
     field_row("Ruta Input", "carpetaInput", data, col_ratio=(1, 6.5))
     
     # CONTACTOS ----------------------------------------------------------------------------------------
-    st.markdown("<p style='margin: 0 0 25px 0;'><b>Contactos</b></p>", unsafe_allow_html=True)
-    with st.expander("Contactos", expanded=False):
-        to_delete = None
-        for i, contacto in enumerate(st.session_state.list_contactos):
-            col_field, col_btn = st.columns([6, 1])
-            with col_field:
-                st.session_state.list_contactos[i] = st.text_input(
-                    f"Contacto {i + 1}", value=contacto,
-                    key=f"contacto_{i}_input", label_visibility="collapsed"
-                )
-            with col_btn:
-                if st.button("✕", key=f"del_contacto_{i}"):
-                    to_delete = i
-        if to_delete is not None:
-            st.session_state.list_contactos.pop(to_delete)
-            st.rerun()
-        if st.button("+ Agregar contacto", key="add_contacto"):
-            st.session_state.list_contactos.append("")
-            st.rerun()
-
-    data["contactos"] = st.session_state.list_contactos
+    data["contactos"] = list_text_input_section("Contactos", "contactos", "Contacto")
 
     # FORMA DE EJECUCION -------------------------------------------------------------------------------
     field_row("Forma de Ejecución", "ejecucion", data, multiline=True, col_ratio=(1, 6.5))
     
     # FASES --------------------------------------------------------------------------------------------
+    #data["fases"] = list_dict_section("Fases del Proceso", "fases", "Fases", "Fase", fields_config=[{"label": "Título de fase", "key": "tituloFase"}, {"label": "Pasos de la fase", "key": "pasos", "type": "list"}], empty_item={"tituloFase": "", "pasos": []})
     st.markdown("<p style='margin: 0 0 25px 0;'><b>Ejecución paso a paso</b></p>", unsafe_allow_html=True)
     fases = data.get("fases", [])
     for i, fase in enumerate(fases):
@@ -162,30 +149,95 @@ def render_pdd(data: dict) -> dict:
                     field_row("Excepción", "excepcion_escenario", paso, key_prefix=f"fase_{i}_paso_{j}_", col_ratio=(1, 7))
 
     # EXCEPCIONES ---------------------------------------------------------------------------------------
-    st.markdown("<p style='margin: 0 0 25px 0;'><b>Excepciones</b></p>", unsafe_allow_html=True)
-    for i, excepcion in enumerate(data.get("excepciones", [])):
-        with st.expander(f"Excepción {i + 1} - {excepcion.get('escenario', '')}", expanded=False):
-            double_field_row("Numero", "numero", "Tipo", "tipo", excepcion, key_prefix=f"excepcion_{i}_")
-            field_row("Descripción", "accion", excepcion, key_prefix=f"excepcion_{i}_", multiline=True, col_ratio=(1, 6.5))
+    data["excepciones"] = list_dict_section("Excepciones", "excepciones", "Excepciones", "Excepción", fields_config=[{"label": "Escenario de excepción", "key": "escenario"}, {"label": "Número de excepción", "key": "numero"}, {"label": "Tipo de excepción", "key": "tipo"}, {"label": "Acción a tomar", "key": "accion", "multiline": True}], empty_item={"escenario": "", "numero": "", "tipo": "", "accion": ""})
     
     # DIAGRAMAS -----------------------------------------------------------------------------------------
-    col_1, col_2, col_3, col_4 = st.columns([2, 2, 2, 2])
-    
+    col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
     with col_1:
-        st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Alto Nivel</b></p>", unsafe_allow_html=True)
+        st.markdown("**Diagrama de Alto Nivel**")
     with col_2:
         img_bytes = st.session_state.get("diagramaAltoNivel")
-        if(img_bytes):
-            show_img(img_bytes)
-    with col_3:
-        st.markdown("<p style='padding-top: 8px; margin: 0;'><b>Diagrama de Bajo Nivel</b></p>", unsafe_allow_html=True)
-    with col_4:
+        show_img_overlay(img_bytes, key="alto_nivel")
+    col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
+    with col_1:
+        st.markdown("**Diagrama de Bajo Nivel**")
+    with col_2:
         img_bytes = st.session_state.get("diagramaBajoNivel")
-        if(img_bytes):
-            show_img(img_bytes)
-
+        show_img_overlay(img_bytes, key="bajo_nivel")
+        
 # FUNCION PARA RENDERIZAR EL SDD ----------------------------------------------------------------------
 def render_sdd(data: dict) -> dict:
+    
+    key = f"list_solucionTecnicaAltoNivel"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("solucionTecnicaAltoNivel", [])
+        st.session_state[key] = [{"_id": j,**(item if isinstance(item, dict) else {"nombreTarea": str(item), "descripcionTarea": ""})} for j, item in enumerate(raw)]
+    st.session_state[f"solucionTecnicaAltoNivel_counter"] = len(st.session_state[key])
+       
+    key = "list_solucionTecnicaDetallada"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("solucionTecnicaDetallada", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"nombreTarea": str(item), "descripcionExacta": "", "excepciones": []}
+            
+            # Normalizar excepciones con _id únicos globales
+            exc_raw = item.get("excepciones", [])
+            if not isinstance(exc_raw, list):
+                exc_raw = []
+            item["excepciones"] = [
+                {"_id": f"{j}_{e}", "value": v if isinstance(v, str) else v.get("value", "")}
+                for e, v in enumerate(exc_raw)
+            ]
+            item["_id"] = j
+            st.session_state[f"solucionTecnicaDetallada_{j}_excepciones_counter"] = len(item["excepciones"])
+            items.append(item)
+        
+        st.session_state[key] = items
+    st.session_state["solucionTecnicaDetallada_counter"] = len(st.session_state[key])
+    
+    key="list_excepciones"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("excepciones", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"evento": str(item), "detalle": "", "accion": "", "responsable": ""}
+            item["_id"] = j
+            items.append(item)
+        st.session_state[key] = items
+    st.session_state["excepciones_counter"] = len(st.session_state[key])
+    
+    key="list_aplicaciones"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("aplicaciones", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"nombre": str(item), "version": "", "comentarios": ""}
+            item["_id"] = j
+            items.append(item)
+        st.session_state[key] = items
+    st.session_state["aplicaciones_counter"] = len(st.session_state[key])
+
+    key="list_archivos"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("archivos", [])
+        items = []
+        for j, item in enumerate(raw):
+            if not isinstance(item, dict):
+                item = {"nombre": str(item), "comentarios": "", "nomenclatura": ""}
+            item["_id"] = j
+            items.append(item)
+        st.session_state[key] = items
+    st.session_state["archivos_counter"] = len(st.session_state[key])
+    
+    key="list_requisitos"
+    if key not in st.session_state:
+        raw = st.session_state.form_data.get("requisitos", [])
+        st.session_state[key] = [{"_id": j, "value": str(item)} for j, item in enumerate(raw)]
+    st.session_state["requisitos_counter"] = len(st.session_state[key])
     
     # RENDERIZO LOS CAMPOS COMUNES ENTRE PDD Y SDD -----------------------------------------------------
     render_common_fields(data)
@@ -194,15 +246,54 @@ def render_sdd(data: dict) -> dict:
     field_row("Objetivo del Bot", "procesoNegocioAltoNivel", data, multiline=True, col_ratio=(1, 6.5))
     
     # SOLUCION TECNICA ALTO NIVEL ----------------------------------------------------------------------
+    data["solucionTecnicaAltoNivel"] = list_dict_section("Solucion Técnica de Alto Nivel", "solucionTecnicaAltoNivel", "Tareas", "Tarea", fields_config=[{"label": "Nombre de tarea", "key": "nombreTarea"}, {"label": "Descripción de tarea", "key": "descripcionTarea", "multiline": True}], empty_item={"nombreTarea": "", "descripcionTarea": ""})
     
+    # SOLUCION TECNICA DETALLADA ----------------------------------------------------------------------
+    data["solucionTecnicaDetallada"] = list_dict_section("Solución Técnica Detallada", "solucionTecnicaDetallada", "Tareas", "Tarea", fields_config=[{"label": "Nombre de tarea", "key": "nombreTarea"}, {"label": "Descripción exacta de tarea", "key": "descripcionExacta", "multiline": True}, {"label": "Excepciones", "key": "excepciones", "type": "list"}], empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []})
+    
+    # EXCEPCIONES ---------------------------------------------------------------------------------------
+    data["excepciones"] = list_dict_section("Excepciones", "excepciones", "Excepciones", "Excepción", fields_config=[{"label": "Evento", "key": "evento"}, {"label": "Detalle", "key": "detalle", "multiline": True}, {"label": "Acción", "key": "accion", "multiline": True}, {"label": "Responsable", "key": "responsable"}], empty_item={"evento": "", "detalle": "", "accion": "", "responsable": ""})
+    
+    # APLICACIONES ---------------------------------------------------------------------------------------
+    data["aplicaciones"] = list_dict_section("Aplicaciones", "aplicaciones", "Aplicaciones", "Aplicación", fields_config=[{"label": "Nombre", "key": "nombre"}, {"label": "Version", "key": "version"},{"label": "Comentarios", "key": "comentarios", "multiline": True}], empty_item={"nombreAplicacion": "", "version": "", "comentarios": ""})
 
+    # ARCHIVOS -----------------------------------------------------------------------------------------
+    data["archivos"] = list_dict_section("Archivos", "archivos", "Archivos", "Archivo", fields_config=[{"label": "Nombre", "key": "nombre"}, {"label": "Comentarios", "key": "comentarios", "multiline": True}, {"label": "Nomenclatura", "key": "nomenclatura"}], empty_item={"nombreArchivo": "", "comentarios": "", "nomenclatura": ""})
+
+    # PREREQUISITOS TECNICOS ----------------------------------------------------------------------------------
+    data["requisitos"] = list_text_input_section("Pre-requisitos Técnicos", "requisitos", "Requisito", multiline=True)
+    
+    # EJECUCION Y REEJECUCION ----------------------------------------------------------------------------------
+    field_row("Forma de Ejecución", "ejecucion", data, multiline=True, col_ratio=(1, 6.5))
+    field_row("Forma de Re-ejecución", "reejecucion", data, multiline=True, col_ratio=(1, 6.5))
+    
+    # MACROS EXCEL -----------------------------------------------------------------------------------------
+    
+    # CODIGO PYTHON -----------------------------------------------------------------------------------------
+    
+    # DIAGRAMAS -----------------------------------------------------------------------------------------
+    col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
+    with col_1:
+        st.markdown("**Diagrama de tasks**")
+    with col_2:
+        img_bytes = st.session_state.get("diagrama_pasos")
+        show_img_overlay(img_bytes, key="pasos")
+    col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
+    with col_1:
+        st.markdown("**Diagrama a detalle**")
+    with col_2:
+        img_bytes = st.session_state.get("diagrama_detalle")
+        show_img_overlay(img_bytes, key="detalle")
+        
+    
+    
 # FUNCION PARA ESTANDARIZAR FILAS DE DOS CAMPOS -------------------------------------------------------
-def double_field_row(label1, key1, label2, key2, data, key_prefix=""):
+def double_field_row(label1, key1, label2, key2, data, key_prefix="", multiline=False):
     col_left, col_right = st.columns([1, 1])
     with col_left:
-        field_row(label1, key1, data, key_prefix=key_prefix)
+        field_row(label1, key1, data, key_prefix=key_prefix, multiline=multiline)
     with col_right:
-        field_row(label2, key2, data, key_prefix=key_prefix)
+        field_row(label2, key2, data, key_prefix=key_prefix, multiline=multiline)
         
 # FUNCION PARA ESTANDARIZAR FILAS DE UN SOLO CAMPO ----------------------------------------------------
 def field_row(label, key, data, col_ratio=None, multiline=False, height=None, key_prefix=""):
@@ -245,48 +336,6 @@ def sanitize_none(data):
         return ""
     return data
 
-# FUNCION PARA MOSTRAR DIAGRAMA ------------------------------------------------------------------------
-def show_img(img_bytes):
-    if not img_bytes:
-        return
-
-    img_base64 = base64.b64encode(img_bytes).decode()
-
-    html = f"""
-    <div class="img-container">
-        <img src="data:image/png;base64,{img_base64}" />
-    </div>
-
-    <style>
-    .img-container {{
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: visible;
-    }}
-
-    .img-container img {{
-        width: 250px;
-        border-radius: 12px;
-        border: 10px solid white;
-        box-shadow: -8px 8px 15px rgba(0,0,0,0.25);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        cursor: pointer;
-        transform-origin: right center
-        margin-bottom: 20px;
-    }}
-
-    .img-container img:hover {{
-        transform: scale(2);
-        box-shadow: -12px 12px 25px rgba(0,0,0,0.35);
-        position: relative;
-        z-index: 999;
-    }}
-    </style>
-    """
-
-    st.markdown(html, unsafe_allow_html=True)
-
 # FUNCION PARA GENERAR LA SECCION DE MODIFICACIONES ----------------------------------------------------      
 def generate_modify(data):
     modificaciones = data.get("modificaciones", [])
@@ -324,3 +373,218 @@ def render_common_fields(data):
             double_field_row("Versión", "version", "Fecha", "fecha", modificaciones[-1], key_prefix="mod_last_")
             double_field_row("Sector", "sector", "Autor", "autor", modificaciones[-1], key_prefix="mod_last_")
             field_row("Motivo modificación", "motivo", modificaciones[-1], multiline=True, key_prefix="mod_last_")
+
+# FUNCION PARA RENDERIZAR CAMPOS EDITABLES (LISTAS) CON BOTONES DE AGREGAR/ELIMINAR ITEMS --------------
+def list_text_input_section(title, field, label_singular, expanded=False, multiline=False):
+    key = f"list_{field}"
+    st.markdown(f"<p style='margin: 0 0 25px 0;'><b>{title}</b></p>", unsafe_allow_html=True)
+    with st.expander(label_singular + "s", expanded=expanded):
+        for item in st.session_state[key]:
+            uid = item["_id"]
+            col_field, col_btn = st.columns([6, 1])
+            with col_field:
+                item["value"] = field_row(label_singular, "value", item, key_prefix=f"{field}_{uid}_", multiline=multiline)
+            with col_btn:
+                if st.button("✕", key=f"del_{field}_{uid}"):
+                    st.session_state[key] = [
+                        e for e in st.session_state[key] if e["_id"] != uid
+                    ]
+                    st.rerun()
+        if st.button(f"+ Agregar {label_singular.lower()}", key=f"add_{field}"):
+            counter = st.session_state.get(f"{field}_counter", 0)
+            st.session_state[key].append({"_id": counter, "value": ""})
+            st.session_state[f"{field}_counter"] = counter + 1
+            st.rerun()
+    
+    return [e["value"] for e in st.session_state[key]]
+
+# FUNCION PARA RENDERIZAR CAMPOS EDITABLES (LISTAS DE DICCIONARIOS) CON BOTONES DE AGREGAR/ELIMINAR ITEMS --------------
+def list_dict_section(title, field, expander_label, item_label, fields_config, empty_item, expanded=False):
+    key = f"list_{field}"
+    st.markdown(f"<p style='margin: 0 0 25px 0;'><b>{title}</b></p>", unsafe_allow_html=True)
+    with st.expander(expander_label, expanded=expanded):
+        for i, item in enumerate(st.session_state[key]):
+            uid = item["_id"]
+            col_expander, col_btn = st.columns([10, 1])
+            with col_expander:
+                with st.expander(f"{item_label} {i + 1}", expanded=True):
+                    for fc in fields_config:
+                        if fc.get("type") == "list":
+                            st.markdown(f"<p style='margin: 0 0 8px 0;'><b>{fc['label']}</b></p>", unsafe_allow_html=True)
+                            _render_inline_list(item, fc, field, uid)
+                        else:
+                            field_row(fc["label"], fc["key"], item,
+                                    key_prefix=f"{field}_{uid}_{fc['key']}",
+                                    multiline=fc.get("multiline", False))
+            with col_btn:
+                if st.button("✕", key=f"del_{field}_{uid}", type="secondary"):
+                    st.session_state[key] = [
+                        t for t in st.session_state[key] if t["_id"] != uid
+                    ]
+                    st.rerun()
+        if st.button(f"+ Agregar {item_label.lower()}", key=f"add_{field}", type="secondary"):
+            counter = st.session_state.get(f"{field}_counter", 0)
+            new_item = {"_id": counter, **empty_item}
+            # Inicializar counter de sublistas para el item nuevo
+            for fc in fields_config:
+                if fc.get("type") == "list":
+                    st.session_state[f"{field}_{counter}_{fc['key']}_counter"] = 0
+            st.session_state[key].append(new_item)
+            st.session_state[f"{field}_counter"] = counter + 1
+            st.rerun()
+
+    return st.session_state[key]
+
+def show_img_overlay(img_bytes, key="overlay"):
+    if not img_bytes:
+        return
+    
+    img_base64 = base64.b64encode(img_bytes).decode()
+
+    # Inyectar overlay UNA sola vez (siempre, en cada render)
+    # El overlay arranca oculto, el botón de Streamlit lo muestra
+    html = f"""
+    <script>
+    (function() {{
+        const doc = window.parent.document;
+
+        // Si ya existe, no reinyectar
+        if (doc.getElementById('overlay_{key}')) return;
+
+        const overlay = doc.createElement('div');
+        overlay.id = 'overlay_{key}';
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 999999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        overlay.innerHTML = `
+            <button id="close_{key}" style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+                cursor: pointer;
+                z-index: 1000000;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            ">✕</button>
+            <img id="img_{key}" src="data:image/png;base64,{img_base64}" style="
+                max-width: 90vw;
+                max-height: 90vh;
+                border-radius: 8px;
+                cursor: grab;
+                user-select: none;
+            "/>
+        `;
+
+        doc.body.appendChild(overlay);
+
+        const img = doc.getElementById('img_{key}');
+        const closeBtn = doc.getElementById('close_{key}');
+        let scale = 1, posX = 0, posY = 0, dragging = false, startX, startY;
+
+        function update() {{
+            img.style.transform = `translate(${{posX}}px, ${{posY}}px) scale(${{scale}})`;
+        }}
+
+        img.addEventListener('wheel', (e) => {{
+            e.preventDefault();
+            scale = Math.min(Math.max(0.5, scale - e.deltaY * 0.001), 6);
+            update();
+        }});
+
+        img.addEventListener('mousedown', (e) => {{
+            dragging = true;
+            startX = e.clientX - posX;
+            startY = e.clientY - posY;
+            img.style.cursor = 'grabbing';
+        }});
+
+        doc.addEventListener('mousemove', (e) => {{
+            if (!dragging) return;
+            posX = e.clientX - startX;
+            posY = e.clientY - startY;
+            update();
+        }});
+
+        doc.addEventListener('mouseup', () => {{
+            dragging = false;
+            img.style.cursor = 'grab';
+        }});
+
+        closeBtn.onclick = () => {{
+            overlay.style.display = 'none';
+            scale = 1; posX = 0; posY = 0;
+            update();
+        }};
+
+        overlay.addEventListener('click', (e) => {{
+            if (e.target === overlay) {{
+                overlay.style.display = 'none';
+                scale = 1; posX = 0; posY = 0;
+                update();
+            }}
+        }});
+
+        // Escuchar evento custom para abrir
+        doc.addEventListener('open_overlay_{key}', () => {{
+            overlay.style.display = 'flex';
+        }});
+    }})();
+    </script>
+    """
+    components.html(html, height=0)
+
+    # Botón que dispara el evento custom en el padre
+    open_html = f"""
+    <button onclick="window.parent.document.dispatchEvent(new Event('open_overlay_{key}'))" style="
+        background-color: transparent !important;
+        color: #aaa !important;
+        border: 1px solid #aaa !important;
+        padding: 4px 16px !important;
+        margin-bottom: 10px !important;
+        cursor: pointer;
+        font-size: 14px;
+        border-radius: 4px;
+    ">Ver</button>
+    """
+    components.html(open_html, height=40)
+
+def _render_inline_list(item, fc, parent_field, parent_uid):
+    subfield = fc["key"]
+    label = fc["label"]
+    counter_key = f"{parent_field}_{parent_uid}_{subfield}_counter"
+
+    if counter_key not in st.session_state:
+        st.session_state[counter_key] = len(item.get(subfield, []))
+
+    for subitem in item.get(subfield, []):
+        sub_uid = subitem["_id"]
+        col_val, col_del = st.columns([6, 1])
+        with col_val:
+            subitem["value"] = st.text_input(
+                label,
+                value=subitem["value"],
+                key=f"{parent_field}_{parent_uid}_{subfield}_{sub_uid}_input",
+                label_visibility="collapsed"
+            )
+        with col_del:
+            if st.button("✕", key=f"del_{parent_field}_{parent_uid}_{subfield}_{sub_uid}"):
+                item[subfield] = [s for s in item[subfield] if s["_id"] != sub_uid]
+                st.rerun()
+
+    if st.button(f"+ Agregar {label.lower()}", key=f"add_{parent_field}_{parent_uid}_{subfield}"):
+        counter = st.session_state.get(counter_key, 0)
+        item[subfield].append({"_id": f"{parent_uid}_{counter}", "value": ""})
+        st.session_state[counter_key] = counter + 1
+        st.rerun()

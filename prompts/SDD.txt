@@ -84,9 +84,7 @@ Estructura JSON (SDD Técnico)
     }
   ],
   "requisitos": [
-    {
-      "requisito": "<prerequisito necesario para que el bot funcione. Ej: acceso a X carpeta.>"
-    }
+    "<prerequisitos necesario para que el bot funcione. Ej: acceso a X carpeta.>"
   ],
   "ejecucion" : "<forma en la que se va a ejecutar el bot. Puede ser a demanda o cada cierto tiempo. Aclarar si depende de algo para ejecutarse. ej: se ejecuta a las 18:00 de cada dia. Podes agregarle \n para que no parezca un parrafo.>",
   "reejecucion": "<explicacion de como reejecutar el bot y en que casos hacerlo. Que inputs necesitamos y si se debe recrear algun escenario. Podes agregarle \n para que no parezca un parrafo.>",

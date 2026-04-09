@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 from io import BytesIO
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # -- Función principal para generar el documento -------------------------------------------------------
 def generate_docx(jsonText: dict, document=None, mode=None):    
