@@ -34,11 +34,15 @@ def screen_connect_ai():
     st.session_state.response = response
     data = json.loads(response)
     if(st.session_state.doc_type == "PDD"):
-        st.session_state.diagramaAltoNivel = generate_mermaid_img(data.get("diagramaAltoNivel", ""))
-        st.session_state.diagramaBajoNivel = generate_mermaid_img(data.get("diagramaBajoNivel", ""))
+        with st.spinner("Generando diagramas..."):
+            st.session_state.diagramaAltoNivel = generate_mermaid_img(data.get("diagramaAltoNivel", ""))
+        with st.spinner("Generando diagramas..."):
+            st.session_state.diagramaBajoNivel = generate_mermaid_img(data.get("diagramaBajoNivel", ""))
     elif(st.session_state.doc_type == "SDD"):
-        st.session_state.diagrama_pasos = generate_mermaid_img(data.get("diagrama_pasos", ""))
-        st.session_state.diagrama_detalle = generate_mermaid_img(data.get("diagrama_detalle", ""))
+        with st.spinner("Generando diagramas..."):
+            st.session_state.diagrama_pasos = generate_mermaid_img(data.get("diagrama_pasos", ""))
+        with st.spinner("Generando diagramas..."):
+            st.session_state.diagrama_detalle = generate_mermaid_img(data.get("diagrama_detalle", ""))
     go_to("verify")
 
 # FUNCION PARA LLAMADA A LA API                
