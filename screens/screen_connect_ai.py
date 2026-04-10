@@ -18,6 +18,7 @@ def screen_connect_ai():
         gif = get_gif_base64(os.path.join(BASE_DIR, "icons", "loading.gif"))
         st.markdown(f'<div style="text-align:center;"><img src="data:image/gif;base64,{gif}" width="120"></div>',unsafe_allow_html=True)
         # ACTUO SEGUN EL AMBIENTE Y ARCHIVO
+        response = None
         if(env == "DESA"):
             if(st.session_state.doc_type == "PDD"):
                 with open(os.path.join(BASE_DIR, "prompts", "PDD_example.json"), "r", encoding="utf-8") as f:
@@ -28,7 +29,6 @@ def screen_connect_ai():
         elif(env == "PROD"):
             with st.spinner(""):
                 response = process_with_ai(st.session_state.files)
-    
     # GUARDO LA RESPUESTA DE LA API
     st.session_state.response = response
     data = json.loads(response)

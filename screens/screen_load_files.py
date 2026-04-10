@@ -8,7 +8,7 @@ def screen_load_files():
     top_bar(title="Ingrese los archivos para analizar", back_to="select", show_stepper=True, step=1)
         
     # CARGADOR DE ARCHIVOS
-    files = st.file_uploader("", type=["pdf", "png", "txt", "docx", "py", "xlsm"], accept_multiple_files=True)
+    files = st.file_uploader("Subir archivos",type=["pdf", "png", "txt", "docx", "py", "xlsm"],accept_multiple_files=True,label_visibility="collapsed")
     st.session_state.files = files
 
     # TEXTO INFORMATIVO
