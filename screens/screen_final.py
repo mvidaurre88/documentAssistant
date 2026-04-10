@@ -21,12 +21,16 @@ def screen_final():
             type="primary"
         )
         
-    st.markdown("""
-        ### ⚠️ Aclaraciones
-        - Los diagramas generados son automáticos y pueden contener imprecisiones.  
-        - Se recomienda utilizarlos como guía y validarlos antes de su uso final.
-        """)
-    
-    
-    
+    if(st.session_state.doc_type == "PDD"):
+        st.markdown("""
+            ### ⚠️ Aclaraciones
+            - Diagramas: Son generados y pueden contener imprecisiones. Utilicelos como guía y validelos antes de su uso final.
+            - Pasos: Son poco exhaustivos y no contienen imágenes. Se recomienda completarlos con información adicional.
+            - Notificaciones: Se mantienen las del template. Ajustarlas según corresponda junto con los criterios de aceptación.
+            """)
+    elif(st.session_state.doc_type == "SDD"):
+        st.markdown("""
+            ### ⚠️ Aclaraciones
+            - Diagramas: son generados y pueden contener imprecisiones. Utilicelos como guía y validelos antes de su uso final.
+            """)
     

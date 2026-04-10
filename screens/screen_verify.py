@@ -89,14 +89,35 @@ def render_pdd(data: dict) -> dict:
         for j, item in enumerate(raw):
             if not isinstance(item, dict):
                 item = {"tituloFase": str(item), "pasos": []}
-            else:
-                pasos_raw = item.get("pasos", [])
-                item["pasos"] = []
-                for p, paso in enumerate(pasos_raw):
-                    if not isinstance(paso, dict):
-                        paso = {"accion": str(paso), "detalle": "", "excepcion_escenario": ""}
-                    item["pasos"].append(paso)
+
+            pasos_raw = item.get("pasos", [])
+            if not isinstance(pasos_raw, list):
+                pasos_raw = []
+            pasos = []
+            for p, paso in enumerate(pasos_raw):
+                if not isinstance(paso, dict):
+                    paso = {
+                        "accion": str(paso),
+                        "detalle": "",
+                        "excepcion_escenario": ""
+                    }
+                paso_normalizado = {
+                    "_id": f"{j}_{p}",
+                    "accion": paso.get("accion", ""),
+                    "detalle": paso.get("detalle", ""),
+                    "excepcion_escenario": paso.get("excepcion_escenario", "")
+                }
+                pasos.append(paso_normalizado)
+            item["pasos"] = pasos
             item["_id"] = j
+
+            # FIX 1: Inicializar la key de session_state que usa _render_inline_list
+            sublist_key = f"list_fases_{j}_pasos"
+            if sublist_key not in st.session_state:
+                st.session_state[sublist_key] = pasos
+                st.session_state[f"{sublist_key}_counter"] = len(pasos)
+
+            st.session_state[f"fases_{j}_pasos_counter"] = len(pasos)
             items.append(item)
         st.session_state[key] = items
     st.session_state["fases_counter"] = len(st.session_state[key])
@@ -137,19 +158,37 @@ def render_pdd(data: dict) -> dict:
     field_row("Forma de Ejecución", "ejecucion", data, multiline=True, col_ratio=(1, 6.5))
     
     # FASES --------------------------------------------------------------------------------------------
-    #data["fases"] = list_dict_section("Fases del Proceso", "fases", "Fases", "Fase", fields_config=[{"label": "Título de fase", "key": "tituloFase"}, {"label": "Pasos de la fase", "key": "pasos", "type": "list"}], empty_item={"tituloFase": "", "pasos": []})
-    st.markdown("<p style='margin: 0 0 25px 0;'><b>Ejecución paso a paso</b></p>", unsafe_allow_html=True)
-    fases = data.get("fases", [])
-    for i, fase in enumerate(fases):
-        with st.expander(f"Fase {i + 1} - {fase.get('tituloFase', '')}", expanded=False):
-            pasos = fase.get("pasos", [])
-            for j, paso in enumerate(pasos):
-                with st.expander(f"Paso {j + 1} - {paso.get('accion', '')}", expanded=True):
-                    field_row("Detalle", "detalle", paso, key_prefix=f"fase_{i}_paso_{j}_", multiline=True, col_ratio=(1, 7))
-                    field_row("Excepción", "excepcion_escenario", paso, key_prefix=f"fase_{i}_paso_{j}_", col_ratio=(1, 7))
+    data["fases"] = list_dict_section(
+        "Fases del Proceso", "fases", "Fases", "Fase",
+        fields_config=[
+            {"label": "Título de fase", "key": "tituloFase"},
+            {
+                "label": "Pasos de la fase",
+                "key": "pasos",
+                "type": "list",
+                # FIX 3: definir los subfields para que _render_inline_list
+                # sepa qué campos renderizar en cada paso
+                "subfields": [
+                    {"label": "Acción", "key": "accion"},
+                    {"label": "Detalle", "key": "detalle", "multiline": True},
+                    {"label": "Excepción / Escenario", "key": "excepcion_escenario", "multiline": True},
+                ]
+            }
+        ],
+        empty_item={"tituloFase": "", "pasos": []}
+    )
 
     # EXCEPCIONES ---------------------------------------------------------------------------------------
-    data["excepciones"] = list_dict_section("Excepciones", "excepciones", "Excepciones", "Excepción", fields_config=[{"label": "Escenario de excepción", "key": "escenario"}, {"label": "Número de excepción", "key": "numero"}, {"label": "Tipo de excepción", "key": "tipo"}, {"label": "Acción a tomar", "key": "accion", "multiline": True}], empty_item={"escenario": "", "numero": "", "tipo": "", "accion": ""})
+    data["excepciones"] = list_dict_section(
+        "Excepciones", "excepciones", "Excepciones", "Excepción",
+        fields_config=[
+            {"label": "Escenario de excepción", "key": "escenario"},
+            {"label": "Número de excepción", "key": "numero"},
+            {"label": "Tipo de excepción", "key": "tipo"},
+            {"label": "Acción a tomar", "key": "accion", "multiline": True}
+        ],
+        empty_item={"escenario": "", "numero": "", "tipo": "", "accion": ""}
+    )
     
     # DIAGRAMAS -----------------------------------------------------------------------------------------
     col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
@@ -187,11 +226,21 @@ def render_sdd(data: dict) -> dict:
             if not isinstance(exc_raw, list):
                 exc_raw = []
             item["excepciones"] = [
-                {"_id": f"{j}_{e}", "value": v if isinstance(v, str) else v.get("value", "")}
+                {
+                "_id": f"{j}_{e}",
+                "value": v if isinstance(v, str) else v.get("value", v.get("evento", ""))
+                }
                 for e, v in enumerate(exc_raw)
             ]
             item["_id"] = j
             st.session_state[f"solucionTecnicaDetallada_{j}_excepciones_counter"] = len(item["excepciones"])
+
+            # Inicializar la key de session_state para la sublista de excepciones
+            sublist_key = f"list_solucionTecnicaDetallada_{j}_excepciones"
+            if sublist_key not in st.session_state:
+                st.session_state[sublist_key] = item["excepciones"]
+                st.session_state[f"{sublist_key}_counter"] = len(item["excepciones"])
+
             items.append(item)
         
         st.session_state[key] = items
@@ -246,19 +295,59 @@ def render_sdd(data: dict) -> dict:
     field_row("Objetivo del Bot", "procesoNegocioAltoNivel", data, multiline=True, col_ratio=(1, 6.5))
     
     # SOLUCION TECNICA ALTO NIVEL ----------------------------------------------------------------------
-    data["solucionTecnicaAltoNivel"] = list_dict_section("Solucion Técnica de Alto Nivel", "solucionTecnicaAltoNivel", "Tareas", "Tarea", fields_config=[{"label": "Nombre de tarea", "key": "nombreTarea"}, {"label": "Descripción de tarea", "key": "descripcionTarea", "multiline": True}], empty_item={"nombreTarea": "", "descripcionTarea": ""})
+    data["solucionTecnicaAltoNivel"] = list_dict_section(
+        "Solucion Técnica de Alto Nivel", "solucionTecnicaAltoNivel", "Tareas", "Tarea",
+        fields_config=[
+            {"label": "Nombre de tarea", "key": "nombreTarea"},
+            {"label": "Descripción de tarea", "key": "descripcionTarea", "multiline": True}
+        ],
+        empty_item={"nombreTarea": "", "descripcionTarea": ""}
+    )
     
     # SOLUCION TECNICA DETALLADA ----------------------------------------------------------------------
-    data["solucionTecnicaDetallada"] = list_dict_section("Solución Técnica Detallada", "solucionTecnicaDetallada", "Tareas", "Tarea", fields_config=[{"label": "Nombre de tarea", "key": "nombreTarea"}, {"label": "Descripción exacta de tarea", "key": "descripcionExacta", "multiline": True}, {"label": "Excepciones", "key": "excepciones", "type": "list"}], empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []})
+    data["solucionTecnicaDetallada"] = list_dict_section(
+        "Solución Técnica Detallada", "solucionTecnicaDetallada", "Tareas", "Tarea",
+        fields_config=[
+            {"label": "Nombre de tarea", "key": "nombreTarea"},
+            {"label": "Descripción exacta de tarea", "key": "descripcionExacta", "multiline": True},
+            {"label": "Excepciones", "key": "excepciones", "type": "list"}
+        ],
+        empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []}
+    )
     
     # EXCEPCIONES ---------------------------------------------------------------------------------------
-    data["excepciones"] = list_dict_section("Excepciones", "excepciones", "Excepciones", "Excepción", fields_config=[{"label": "Evento", "key": "evento"}, {"label": "Detalle", "key": "detalle", "multiline": True}, {"label": "Acción", "key": "accion", "multiline": True}, {"label": "Responsable", "key": "responsable"}], empty_item={"evento": "", "detalle": "", "accion": "", "responsable": ""})
+    data["excepciones"] = list_dict_section(
+        "Excepciones", "excepciones", "Excepciones", "Excepción",
+        fields_config=[
+            {"label": "Evento", "key": "evento"},
+            {"label": "Detalle", "key": "detalle", "multiline": True},
+            {"label": "Acción", "key": "accion", "multiline": True},
+            {"label": "Responsable", "key": "responsable"}
+        ],
+        empty_item={"evento": "", "detalle": "", "accion": "", "responsable": ""}
+    )
     
     # APLICACIONES ---------------------------------------------------------------------------------------
-    data["aplicaciones"] = list_dict_section("Aplicaciones", "aplicaciones", "Aplicaciones", "Aplicación", fields_config=[{"label": "Nombre", "key": "nombre"}, {"label": "Version", "key": "version"},{"label": "Comentarios", "key": "comentarios", "multiline": True}], empty_item={"nombreAplicacion": "", "version": "", "comentarios": ""})
+    data["aplicaciones"] = list_dict_section(
+        "Aplicaciones", "aplicaciones", "Aplicaciones", "Aplicación",
+        fields_config=[
+            {"label": "Nombre", "key": "nombre"},
+            {"label": "Version", "key": "version"},
+            {"label": "Comentarios", "key": "comentarios", "multiline": True}
+        ],
+        empty_item={"nombreAplicacion": "", "version": "", "comentarios": ""}
+    )
 
     # ARCHIVOS -----------------------------------------------------------------------------------------
-    data["archivos"] = list_dict_section("Archivos", "archivos", "Archivos", "Archivo", fields_config=[{"label": "Nombre", "key": "nombre"}, {"label": "Comentarios", "key": "comentarios", "multiline": True}, {"label": "Nomenclatura", "key": "nomenclatura"}], empty_item={"nombreArchivo": "", "comentarios": "", "nomenclatura": ""})
+    data["archivos"] = list_dict_section(
+        "Archivos", "archivos", "Archivos", "Archivo",
+        fields_config=[
+            {"label": "Nombre", "key": "nombre"},
+            {"label": "Comentarios", "key": "comentarios", "multiline": True},
+            {"label": "Nomenclatura", "key": "nomenclatura"}
+        ],
+        empty_item={"nombreArchivo": "", "comentarios": "", "nomenclatura": ""}
+    )
 
     # PREREQUISITOS TECNICOS ----------------------------------------------------------------------------------
     data["requisitos"] = list_text_input_section("Pre-requisitos Técnicos", "requisitos", "Requisito", multiline=True)
@@ -284,8 +373,6 @@ def render_sdd(data: dict) -> dict:
     with col_2:
         img_bytes = st.session_state.get("diagrama_detalle")
         show_img_overlay(img_bytes, key="detalle")
-        
-    
     
 # FUNCION PARA ESTANDARIZAR FILAS DE DOS CAMPOS -------------------------------------------------------
 def double_field_row(label1, key1, label2, key2, data, key_prefix="", multiline=False):
@@ -301,10 +388,21 @@ def field_row(label, key, data, col_ratio=None, multiline=False, height=None, ke
     if data is None:
         data = {}
     value = data.get(key, "") or ""
-    col1, col2 = st.columns(ratio)
-    with col1:
-        st.markdown(f"<p style='padding-top: 8px; margin: 0;'><b>{label}</b></p>", unsafe_allow_html=True)
-    with col2:
+    if(label is not None):
+        col1, col2 = st.columns(ratio)
+        with col1:
+            st.markdown(f"<p style='padding-top: 8px; margin: 0;'><b>{label}</b></p>", unsafe_allow_html=True)
+        with col2:
+            unique_key = f"field_{key_prefix}{key}" if key_prefix else f"field_{key}"
+            if multiline:
+                if height is None:
+                    lines = (len(value) // 60) + value.count("\n") + 1
+                    height = max(100, lines * 22) + 5
+                data[key] = st.text_area("", value=value, key=unique_key, label_visibility="collapsed", height=height)
+            else:
+                data[key] = st.text_input("", value=value, key=unique_key, label_visibility="collapsed")
+            return data[key]
+    else:
         unique_key = f"field_{key_prefix}{key}" if key_prefix else f"field_{key}"
         if multiline:
             if height is None:
@@ -313,7 +411,7 @@ def field_row(label, key, data, col_ratio=None, multiline=False, height=None, ke
             data[key] = st.text_area("", value=value, key=unique_key, label_visibility="collapsed", height=height)
         else:
             data[key] = st.text_input("", value=value, key=unique_key, label_visibility="collapsed")
-        return data[key]  
+        return data[key] 
 
 # FUNCION PARA AGREGAR LA FECHA ACTUAL -----------------------------------------------------------------
 def add_current_date(json):
@@ -383,7 +481,7 @@ def list_text_input_section(title, field, label_singular, expanded=False, multil
             uid = item["_id"]
             col_field, col_btn = st.columns([6, 1])
             with col_field:
-                item["value"] = field_row(label_singular, "value", item, key_prefix=f"{field}_{uid}_", multiline=multiline)
+                item["value"] = field_row(label= None,key="value",data=item, key_prefix=f"{field}_{uid}_", multiline=multiline)
             with col_btn:
                 if st.button("✕", key=f"del_{field}_{uid}"):
                     st.session_state[key] = [
@@ -410,7 +508,8 @@ def list_dict_section(title, field, expander_label, item_label, fields_config, e
                 with st.expander(f"{item_label} {i + 1}", expanded=True):
                     for fc in fields_config:
                         if fc.get("type") == "list":
-                            st.markdown(f"<p style='margin: 0 0 8px 0;'><b>{fc['label']}</b></p>", unsafe_allow_html=True)
+                            st.markdown(f"<p style='margin: 0 0 25px 0;'><b>{fc['label']}</b></p>", unsafe_allow_html=True)
+                            st.markdown("&nbsp;", unsafe_allow_html=True)
                             _render_inline_list(item, fc, field, uid)
                         else:
                             field_row(fc["label"], fc["key"], item,
@@ -418,9 +517,7 @@ def list_dict_section(title, field, expander_label, item_label, fields_config, e
                                     multiline=fc.get("multiline", False))
             with col_btn:
                 if st.button("✕", key=f"del_{field}_{uid}", type="secondary"):
-                    st.session_state[key] = [
-                        t for t in st.session_state[key] if t["_id"] != uid
-                    ]
+                    st.session_state[key] = [t for t in st.session_state[key] if t["_id"] != uid]
                     st.rerun()
         if st.button(f"+ Agregar {item_label.lower()}", key=f"add_{field}", type="secondary"):
             counter = st.session_state.get(f"{field}_counter", 0)
@@ -428,7 +525,9 @@ def list_dict_section(title, field, expander_label, item_label, fields_config, e
             # Inicializar counter de sublistas para el item nuevo
             for fc in fields_config:
                 if fc.get("type") == "list":
-                    st.session_state[f"{field}_{counter}_{fc['key']}_counter"] = 0
+                    sublist_key = f"list_{field}_{counter}_{fc['key']}"
+                    st.session_state[sublist_key] = []
+                    st.session_state[f"{sublist_key}_counter"] = 0
             st.session_state[key].append(new_item)
             st.session_state[f"{field}_counter"] = counter + 1
             st.rerun()
@@ -560,31 +659,95 @@ def show_img_overlay(img_bytes, key="overlay"):
     """
     components.html(open_html, height=40)
 
+# FIX COMPLETO de _render_inline_list
+# Corrige bugs 1, 2, 3 y 4: inicialización de session_state, sincronización
+# bidireccional, renderizado de campos reales y creación correcta de items nuevos.
 def _render_inline_list(item, fc, parent_field, parent_uid):
     subfield = fc["key"]
     label = fc["label"]
-    counter_key = f"{parent_field}_{parent_uid}_{subfield}_counter"
+    subfields = fc.get("subfields", None)  # FIX 3: leer subfields del config
+    key = f"list_{parent_field}_{parent_uid}_{subfield}"
+    counter_key = f"{key}_counter"
 
-    if counter_key not in st.session_state:
-        st.session_state[counter_key] = len(item.get(subfield, []))
+    # FIX 1: Sincronizar session_state con el item real si no existe la key
+    if key not in st.session_state:
+        raw = item.get(subfield, [])
+        if not isinstance(raw, list):
+            raw = []
+        # Normalizar items: asegurar que tengan _id
+        normalized = []
+        for idx, s in enumerate(raw):
+            if not isinstance(s, dict):
+                s = {"value": str(s)}
+            if "_id" not in s:
+                s = {"_id": f"{parent_uid}_{idx}", **s}
+            normalized.append(s)
+        st.session_state[key] = normalized
+        st.session_state[counter_key] = len(normalized)
 
-    for subitem in item.get(subfield, []):
-        sub_uid = subitem["_id"]
-        col_val, col_del = st.columns([6, 1])
-        with col_val:
-            subitem["value"] = st.text_input(
-                label,
-                value=subitem["value"],
-                key=f"{parent_field}_{parent_uid}_{subfield}_{sub_uid}_input",
-                label_visibility="collapsed"
-            )
-        with col_del:
-            if st.button("✕", key=f"del_{parent_field}_{parent_uid}_{subfield}_{sub_uid}"):
-                item[subfield] = [s for s in item[subfield] if s["_id"] != sub_uid]
-                st.rerun()
+    for subitem in st.session_state[key]:
+        uid = subitem["_id"]
 
-    if st.button(f"+ Agregar {label.lower()}", key=f"add_{parent_field}_{parent_uid}_{subfield}"):
+        # FIX 3: si hay subfields definidos, renderizar cada campo nombrado
+        if subfields:
+            col_exp, col_btn = st.columns([10, 1])
+            with col_exp:
+                with st.expander(f"{label.rstrip('s')} {uid}", expanded=True):
+                    for sf in subfields:
+                        field_row(
+                            sf["label"],
+                            sf["key"],
+                            subitem,
+                            key_prefix=f"{key}_{uid}_",
+                            multiline=sf.get("multiline", False)
+                        )
+            with col_btn:
+                if st.button("✕", key=f"del_{key}_{uid}"):
+                    st.session_state[key] = [
+                        s for s in st.session_state[key] if s["_id"] != uid
+                    ]
+                    # FIX 2: propagar cambios al item padre
+                    item[subfield] = st.session_state[key]
+                    st.rerun()
+        else:
+            # Comportamiento original para sublistas simples (solo "value")
+            col_field, col_btn = st.columns([6, 1])
+            with col_field:
+                subitem["value"] = field_row(
+                    label=None,
+                    key="value",
+                    data=subitem,
+                    key_prefix=f"{key}_{uid}_",
+                    multiline=True
+                )
+            with col_btn:
+                if st.button("✕", key=f"del_{key}_{uid}"):
+                    st.session_state[key] = [
+                        s for s in st.session_state[key] if s["_id"] != uid
+                    ]
+                    # FIX 2: propagar cambios al item padre
+                    item[subfield] = st.session_state[key]
+                    st.rerun()
+
+    # FIX 4: crear el nuevo item con los campos correctos según subfields
+    if st.button(f"+ Agregar {label.lower()}", key=f"add_{key}"):
         counter = st.session_state.get(counter_key, 0)
-        item[subfield].append({"_id": f"{parent_uid}_{counter}", "value": ""})
+        new_id = f"{parent_uid}_{counter}"
+
+        if subfields:
+            # Crear item con todos los campos definidos en subfields
+            new_item = {"_id": new_id}
+            for sf in subfields:
+                new_item[sf["key"]] = [] if sf.get("type") == "list" else ""
+        elif st.session_state[key]:
+            # Inferir campos del primer item existente
+            template = {k: "" for k in st.session_state[key][0] if k != "_id"}
+            new_item = {"_id": new_id, **template}
+        else:
+            new_item = {"_id": new_id, "value": ""}
+
+        st.session_state[key].append(new_item)
+        # FIX 2: propagar cambios al item padre
+        item[subfield] = st.session_state[key]
         st.session_state[counter_key] = counter + 1
         st.rerun()
