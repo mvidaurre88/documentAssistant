@@ -1,3 +1,4 @@
+import requests
 import os, traceback, base64, time, tempfile, subprocess, json, streamlit as st
 from utils.navigation import *
 from components.top_bar import top_bar
@@ -79,28 +80,19 @@ def get_gif_base64(path):
 
 # FUNCION PARA GENERAR DIAGRAMAS -----------------------------------------------------------------------
 def generate_mermaid_img(code):
-    mermaidCode = code
-    
-    if not mermaidCode:
+    if not code:
         return None
 
     try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mmd_path = f"{tmpdir}/diagrama.mmd"
-            png_path = f"{tmpdir}/diagrama.png"
+        graphbytes = code.encode("utf-8")
+        base64_bytes = base64.urlsafe_b64encode(graphbytes)
+        base64_string = base64_bytes.decode("ascii")
 
-            with open(mmd_path, "w", encoding="utf-8") as f:
-                f.write(
-                    '%%{init: {"theme": "neutral", "flowchart": {"curve": "stepAfter", "rankSpacing": 40}}}%%\n'
-                    + mermaidCode +
-                    "\nlinkStyle default stroke-width:4px;"
-                )
+        url = f"https://mermaid.ink/img/{base64_string}"
 
-            subprocess.run(f"mmdc -i {mmd_path} -o {png_path} -w 1200 -H 600", shell=True, check=True)
-
-            with open(png_path, "rb") as img_file:
-                return img_file.read()
+        response = requests.get(url)
+        return response.content
 
     except Exception as e:
-        st.warning(f"No se pudo generar el preview: {e}")
+        st.error(f"Error generando imagen: {e}")
         return None
