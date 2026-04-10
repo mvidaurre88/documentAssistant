@@ -192,14 +192,16 @@ def render_pdd(data: dict) -> dict:
     with col_1:
         st.markdown("**Diagrama de Alto Nivel**")
     with col_2:
-        img_bytes = st.session_state.get("diagramaAltoNivel")
-        show_img_overlay(img_bytes, key="alto_nivel")
+        img_bytes = st.session_state.get("diagramaAltoNivel", None)
+        if img_bytes:
+            show_img_overlay(img_bytes, key="alto_nivel")
     col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
     with col_1:
         st.markdown("**Diagrama de Bajo Nivel**")
     with col_2:
-        img_bytes = st.session_state.get("diagramaBajoNivel")
-        show_img_overlay(img_bytes, key="bajo_nivel")
+        img_bytes = st.session_state.get("diagramaBajoNivel", None)
+        if img_bytes:
+            show_img_overlay(img_bytes, key="bajo_nivel")
         
 # FUNCION PARA RENDERIZAR EL SDD ----------------------------------------------------------------------
 def render_sdd(data: dict) -> dict:
@@ -362,15 +364,17 @@ def render_sdd(data: dict) -> dict:
     with col_1:
         st.markdown("**Diagrama de tasks**")
     with col_2:
-        img_bytes = st.session_state.get("diagrama_pasos")
-        show_img_overlay(img_bytes, key="pasos")
+        img_bytes = st.session_state.get("diagrama_pasos", None)
+        if img_bytes:
+            show_img_overlay(img_bytes, key="pasos")
     col_1, col_2, col_3, col_4 = st.columns([3, 1, 2, 2])
     with col_1:
         st.markdown("**Diagrama a detalle**")
     with col_2:
-        img_bytes = st.session_state.get("diagrama_detalle")
-        show_img_overlay(img_bytes, key="detalle")
-    
+        img_bytes = st.session_state.get("diagrama_detalle", None)
+        if img_bytes:
+            show_img_overlay(img_bytes, key="detalle")
+
 # FUNCION PARA ESTANDARIZAR FILAS DE DOS CAMPOS -------------------------------------------------------
 def double_field_row(label1, key1, label2, key2, data, key_prefix="", multiline=False):
     col_left, col_right = st.columns([1, 1])

@@ -32,6 +32,7 @@ def screen_connect_ai():
         elif(env == "PROD"):
             with st.spinner(""):
                 response = process_with_ai(st.session_state.files)
+                print ("Respuesta de la IA:", response)
     # GUARDO LA RESPUESTA DE LA API
     response_clean = response.strip()
     if response_clean.startswith("```"):
