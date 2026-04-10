@@ -1,3 +1,5 @@
+from urllib import response
+
 import requests
 import os, traceback, base64, time, tempfile, subprocess, json, streamlit as st
 from utils.navigation import *
@@ -31,8 +33,11 @@ def screen_connect_ai():
             with st.spinner(""):
                 response = process_with_ai(st.session_state.files)
     # GUARDO LA RESPUESTA DE LA API
-    st.session_state.response = response
-    data = json.loads(response)
+    response_clean = response.strip()
+    if response_clean.startswith("```"):
+        response_clean = response_clean.replace("```json", "").replace("```", "").strip()
+    st.session_state.response = response_clean
+    data = json.loads(response_clean)
     if(st.session_state.doc_type == "PDD"):
         with st.spinner("Generando diagramas..."):
             st.session_state.diagramaAltoNivel = generate_mermaid_img(data.get("diagramaAltoNivel", ""))
