@@ -1,12 +1,9 @@
-import io
 import json, re, traceback, base64, streamlit as st
 import streamlit.components.v1 as components
-from streamlit_image_zoom import image_zoom
 from datetime import date
 from utils.navigation import *
 from components.top_bar import top_bar
 from utils.docx_generator import *
-from PIL import Image
 
 def screen_verify():
     st.markdown("""
