@@ -2,3 +2,5 @@ docxtpl
 python-docx
 jinja2
 google-genai
+json5
+openpyxl

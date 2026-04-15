@@ -1,3 +1,4 @@
+import json5
 import json, re, traceback, base64, streamlit as st
 import streamlit.components.v1 as components
 from datetime import date
@@ -35,9 +36,37 @@ def screen_verify():
 
     raw = st.session_state.response
     if isinstance(raw, str):
-        texto_limpio = re.sub(r"```json|```", "", raw).strip()
-        texto_limpio = re.sub(r'\\(?!n)', r'\\\\', texto_limpio)
-        data = json.loads(texto_limpio)
+        texto_limpio = raw
+        try:
+            data = json5.loads(texto_limpio)
+        except Exception as e:
+            error_msg = str(e)
+            print(f"[ERROR] Fallo al parsear JSON: {error_msg}")
+
+            match = re.search(r'line (\d+) column (\d+) \(char (\d+)\)', error_msg)
+            if match:
+                line_num = int(match.group(1))
+                col_num  = int(match.group(2))
+                char_pos = int(match.group(3))
+                lines    = texto_limpio.splitlines()
+
+                context_start = max(0, line_num - 3)
+                context_end   = min(len(lines), line_num + 2)
+
+                print(f"[ERROR] Posición: línea {line_num}, columna {col_num} (char {char_pos})")
+                print(f"[ERROR] Contexto:")
+                for i, l in enumerate(lines[context_start:context_end], start=context_start + 1):
+                    marker = " >>> " if i == line_num else "     "
+                    print(f"{marker}línea {i:4d}: {l}")
+
+                if 0 < line_num <= len(lines):
+                    broken_line = lines[line_num - 1]
+                    snippet     = broken_line[max(0, col_num - 20):col_num + 20]
+                    print(f"[ERROR] Fragmento exacto (~40 chars): ...{snippet}...")
+
+            st.error(f"Error al parsear la respuesta. Revisá los logs.\n\n`{error_msg}`")
+            st.stop()
+
         data = add_current_date(data)
         data = generate_modify(data)
     else:
@@ -45,7 +74,6 @@ def screen_verify():
 
     if "form_data" not in st.session_state:
         st.session_state.form_data = data
-
     #Muestro segun el tipo de documento
     doc_type = st.session_state.doc_type
     if(doc_type == "PDD"):
@@ -96,13 +124,13 @@ def render_pdd(data: dict) -> dict:
                     paso = {
                         "accion": str(paso),
                         "detalle": "",
-                        "excepcion_escenario": ""
+                        "excepciones": ""
                     }
                 paso_normalizado = {
                     "_id": f"{j}_{p}",
                     "accion": paso.get("accion", ""),
                     "detalle": paso.get("detalle", ""),
-                    "excepcion_escenario": paso.get("excepcion_escenario", "")
+                    "excepciones": paso.get("excepciones", "")
                 }
                 pasos.append(paso_normalizado)
             item["pasos"] = pasos
@@ -168,7 +196,7 @@ def render_pdd(data: dict) -> dict:
                 "subfields": [
                     {"label": "Acción", "key": "accion"},
                     {"label": "Detalle", "key": "detalle", "multiline": True},
-                    {"label": "Excepción / Escenario", "key": "excepcion_escenario", "multiline": True},
+                    {"label": "Excepción / Escenario", "key": "excepciones", "multiline": True},
                 ]
             }
         ],
@@ -180,11 +208,10 @@ def render_pdd(data: dict) -> dict:
         "Excepciones", "excepciones", "Excepciones", "Excepción",
         fields_config=[
             {"label": "Escenario de excepción", "key": "escenario"},
-            {"label": "Número de excepción", "key": "numero"},
             {"label": "Tipo de excepción", "key": "tipo"},
             {"label": "Acción a tomar", "key": "accion", "multiline": True}
         ],
-        empty_item={"escenario": "", "numero": "", "tipo": "", "accion": ""}
+        empty_item={"escenario": "", "tipo": "", "accion": ""}
     )
     
     # DIAGRAMAS -----------------------------------------------------------------------------------------
@@ -399,9 +426,9 @@ def field_row(label, key, data, col_ratio=None, multiline=False, height=None, ke
                 if height is None:
                     lines = (len(value) // 60) + value.count("\n") + 1
                     height = max(100, lines * 22) + 5
-                data[key] = st.text_area("", value=value, key=unique_key, label_visibility="collapsed", height=height)
+                data[key] = st.text_area(" ", value=value, key=unique_key, label_visibility="collapsed", height=height)
             else:
-                data[key] = st.text_input("", value=value, key=unique_key, label_visibility="collapsed")
+                data[key] = st.text_input(" ", value=value, key=unique_key, label_visibility="collapsed")
             return data[key]
     else:
         unique_key = f"field_{key_prefix}{key}" if key_prefix else f"field_{key}"
@@ -409,9 +436,9 @@ def field_row(label, key, data, col_ratio=None, multiline=False, height=None, ke
             if height is None:
                 lines = (len(value) // 60) + value.count("\n") + 1
                 height = max(100, lines * 22) + 5
-            data[key] = st.text_area("", value=value, key=unique_key, label_visibility="collapsed", height=height)
+            data[key] = st.text_area(" ", value=value, key=unique_key, label_visibility="collapsed", height=height)
         else:
-            data[key] = st.text_input("", value=value, key=unique_key, label_visibility="collapsed")
+            data[key] = st.text_input(" ", value=value, key=unique_key, label_visibility="collapsed")
         return data[key] 
 
 # FUNCION PARA AGREGAR LA FECHA ACTUAL -----------------------------------------------------------------

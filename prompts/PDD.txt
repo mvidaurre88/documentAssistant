@@ -4,8 +4,10 @@ Podrás recibir como inputs: Transcripciones de reuniones donde se hable del pro
 Opcionalmente también podes recibir información proveniente de un PDD. En ese caso se debe copiar su contenido exacto, agregando los cambios necesarios.
 
 Reglas importantes:
-- Devuelve ÚNICAMENTE el JSON.
-- No agregues explicaciones ni texto adicional.
+- Usa codificación UTF-8
+- Devuelve ÚNICAMENTE un objeto JSON válido.
+- No incluyas explicaciones, texto adicional ni formato markdown.
+- El JSON debe ser parseable directamente con json.loads() en Python.
 - Si un campo no aparece claramente o no estás seguro, déjalo vacío ("") o como lista vacía ([]).
 - No inventes información.
 - Mantén exactamente la misma estructura del JSON.
@@ -39,8 +41,8 @@ Formato a devolver:
         }
     ],
     "propositoProceso": "<objetivo del bot o proceso, podes agregar \n para que no sea solo un parrafo.>",
-    "diagramaAltoNivel": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo del proceso a alto nivel. Utiliza el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). Reglas: 1) El nodo inicial debe ser START([START]) y el final END([END]). 2) Representa únicamente las etapas principales del proceso, agrupando tareas relacionadas en bloques generales (ej: Recepción de datos, Procesamiento, Validación, Envio de notificacion final). 3) Utiliza descripciones claras y concisas en cada nodo, evitando detalles técnicos o pasos operativos específicos. 4) Puedes incluir nodos de decisión solo cuando sean relevantes a nivel funcional (ej: Validación general del proceso), sin detallar excepciones técnicas específicas. 5) El flujo debe ser simple, lineal y fácil de entender para usuarios no técnicos. 6) Todos los caminos deben converger correctamente en el nodo END.>",
-    "diagramaBajoNivel": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo de proceso completo y a bajo nivel. Utiliza el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). Reglas estrictas: 1) El nodo inicial debe ser START([START]) y el final END([END]). 2) Representa el paso a paso detallado de las tareas específicas del bot. 3) Debes incluir nodos de decisión (forma de rombo, ej: dec1{¿Existe carpeta?}) para evaluar las condiciones del proceso. 4) A partir de las decisiones, grafica explícitamente los caminos de las excepciones técnicas (ej: fallo de acceso al Excel/SharePoint) y de negocio (ej: documento faltante, nomenclatura errónea, sin sufijo -vf). 5) Indica la acción que toma el bot ante cada excepción (ej: Registrar Erróneo, Enviar Mail, Siguiente empleado). 6) Todos los caminos, tanto el flujo ideal (Happy Path) como los desvíos por excepciones, deben converger correctamente para que el diagrama finalice en el único nodo END.>",
+    "diagramaAltoNivel": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo del proceso a alto nivel. Utiliza el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). No uses corchetes ni paréntesis dentro del texto de los nodos. Reglas: 1) El nodo inicial debe ser START([START]) y el final END([END]). 2) Representa únicamente las etapas principales del proceso, agrupando tareas relacionadas en bloques generales (ej: Recepción de datos, Procesamiento, Validación, Envio de notificacion final). 3) Utiliza descripciones claras y concisas en cada nodo, evitando detalles técnicos o pasos operativos específicos. 4) Puedes incluir nodos de decisión solo cuando sean relevantes a nivel funcional (ej: Validación general del proceso), sin detallar excepciones técnicas específicas. 5) El flujo debe ser simple, lineal y fácil de entender para usuarios no técnicos. 6) Todos los caminos deben converger correctamente en el nodo END.>",
+    "diagramaBajoNivel": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo de proceso completo y a bajo nivel. No uses corchetes ni paréntesis dentro del texto de los nodos. Reglas de sintaxis OBLIGATORIAS: 1) NO uses '\\n' ni saltos de línea dentro de los labels de los nodos — si el texto es largo, acortalo o resumilo en una frase corta. 2) NO uses paréntesis ( ) dentro del texto de los nodos — reemplazalos por guiones o comas. 3) El nodo inicial debe ser START([START]) y el final END([END]). Reglas de contenido: 4) Representa el paso a paso detallado de las tareas específicas del bot. 5) Incluí nodos de decisión en forma de rombo (ej: D1{¿Existe carpeta?}) para evaluar condiciones del proceso. 6) A partir de las decisiones, graficá explícitamente los caminos de excepciones técnicas y de negocio. 7) Indicá la acción que toma el bot ante cada excepción. 8) Todos los caminos, tanto el Happy Path como los desvíos por excepciones, deben converger correctamente en el único nodo END.>"
     "entradas": [
         "<archivos, datos o inputs que utiliza el proceso con su nomenclatura (si se menciona).>"
     ],
@@ -56,7 +58,6 @@ Formato a devolver:
     "ejecucion": "<frecuencia o forma de ejecución: manual, scheduler, horario, etc.>",
     "excepciones": [
         {
-            "numero": "<4.2.x completar x con un numero incremental>",
             "tipo": "<tecnica o de negocio>",
             "escenario": "<descripción del escenario de excepción>",
             "accion": "<acción a tomar ante la excepción>"
@@ -69,7 +70,7 @@ Formato a devolver:
                 {
                     "accion": "<nombre de la acción del paso>",
                     "detalle": "<descripción detallada del paso>",
-                    "excepcion_escenario": "<escenario de excepción asociado al paso>"
+                    "excepciones": "<excepciones que pueden ocurrir asociadas al paso, de las previamente nombradas>"
                 }
             ]
         }

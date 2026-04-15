@@ -1,8 +1,8 @@
-import streamlit as st
-import os
+import os, logging, streamlit as st
 from utils.router import get_screens
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "errors.log")
 SCREENS = get_screens(BASE_DIR)
 
 def inject_css():
@@ -196,6 +196,13 @@ def inject_css():
 
 # -- CSS GLOBAL PARA LA APP ------------------------------------------------------------------------
 inject_css()
+
+# CONFIGURACIÓN DE LOGGEO --------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.ERROR,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[ logging.FileHandler(LOG_FILE, encoding="utf-8") ])
+logger = logging.getLogger(__name__)
 
 # -- CONFIGURACIÓN INICIAL -------------------------------------------------------------------------
 st.set_page_config(page_title="IA Documentation Assistant", layout="wide")

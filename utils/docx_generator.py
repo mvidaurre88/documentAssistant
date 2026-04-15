@@ -25,6 +25,7 @@ def generate_docx(jsonText: dict, document=None, mode=None):
         return
 
     # -- Reviso si es PDD o SDD y genero el archivo ----------------------------------------------------
+    jsonText = sanitize_all(jsonText)
     if document == "SDD":
         buffer = generate_SDD(tpl, jsonText)
     elif document == "PDD":
@@ -48,11 +49,9 @@ def generate_SDD(tpl, context):
         if campo in context and isinstance(context[campo], str):
             context[campo] = format_richtext(context[campo])
     
-    # Genero la imagen del diagrama de pasos
-    generar_imagen(field="diagrama_pasos", height=7.87, tpl=tpl, context=context)
-
-    # Genero la imagen del diagrama de bajo nivel
-    generar_imagen(field="diagrama_detalle", height=8.7, tpl=tpl, context=context)
+    # GENERO IMAGENES
+    load_img(field="diagrama_pasos", height=7.87, tpl=tpl, context=context)
+    load_img(field="diagrama_detalle", height=8.7, tpl=tpl, context=context)
     
     tpl.render(context)
 
@@ -64,44 +63,43 @@ def generate_SDD(tpl, context):
 
 def generate_PDD(tpl, context: dict):
     
-    # Formateo todos los campos que tengan richText
-    campos_richtext = ["propositoProceso"]
-    for campo in campos_richtext:
-        if campo in context and isinstance(context[campo], str):
-            context[campo] = format_richtext(context[campo])
+    # PROPOSITO PROCESO ----------------------------------------------------
+    context["propositoProceso"] = format_richtext(context["propositoProceso"])
 
-    # Genero la imagen del diagrama de pasos
-    generar_imagen(field="diagramaAltoNivel", height=6, tpl=tpl, context=context)
+    # IMAGENES DE LOS DIAGRAMAS --------------------------------------------
+    load_img(field="diagramaAltoNivel", height=6, tpl=tpl, context=context)
+    load_img(field="diagramaBajoNivel", height=8, tpl=tpl, context=context)
 
-    # Genero la imagen del diagrama de bajo nivel
-    generar_imagen(field="diagramaBajoNivel", height=8, tpl=tpl, context=context)
+    # PASOS DE LAS FASES ------------------------------------------------------
+    fases = context.get("fases", [])
+    phaseCounter = 1
+    for fase in fases:
+        stepCounter = 1
+        pasos = fase.get("pasos", [])
+        for paso in pasos:
+            paso["numero"] = f"3.{phaseCounter}.{stepCounter}"
+            stepCounter += 1
+        phaseCounter += 1
 
-    # Formateo las excepciones
+    # EXCEPCIONES -------------------------------------------------------------
     excepciones = context.get("excepciones", [])
-    
-    excepcionesSys = [e for e in excepciones if e["tipo"] in ("tecnica", "técnica")]
+    excepcionesSys = []
+    excepcionesNeg = []
+    counter_exceptions = 1
+    for e in excepciones:
+        if e["tipo"].strip().lower() in ("tecnica", "técnica"):
+            e["numero"] = f"4.2.{counter_exceptions}"
+            excepcionesSys.append(e)
+            counter_exceptions += 1
+    for e in excepciones:
+        if e["tipo"].strip().lower() in ("negocio", "de negocio"):
+            e["numero"] = f"4.2.{counter_exceptions}"
+            excepcionesNeg.append(e)
+            counter_exceptions += 1
     context["excepcionesSys"] = excepcionesSys
-    
-    excepcionesNeg = [e for e in excepciones if e["tipo"] == "negocio"]
     context["excepcionesNeg"] = excepcionesNeg
-
-    mapa_excepciones = {e["escenario"]: e["numero"] for e in excepciones}
-    fases_data = context.get("fases", [])
     
-    # Enumerar pasos y agregar número de excepción desde el mapa
-    paso_counter = [1]
-    for fase in fases_data:
-        for paso in fase["pasos"]:
-            paso["numero"] = f"3.1.{paso_counter[0]}"
-            paso["excepcion_numero"] = mapa_excepciones.get(paso["excepcion_escenario"], "")
-            paso_counter[0] += 1
-
-    # Generar subdocs DESPUÉS de crear tpl
-    fases_subdocs = [crear_subdoc_fase(tpl, f) for f in fases_data]
-
     variables_template = tpl.get_undeclared_template_variables()
-
-    context["fases"] = fases_data
 
     faltantes = [var for var in variables_template if var not in context]
     vacios     = [key for key, value in context.items() if value == "" or value is None]
@@ -121,47 +119,21 @@ def generate_PDD(tpl, context: dict):
     buffer.seek(0)
 
     doc = Document(buffer)
-
-    # Insertar tabla después de cada título de fase
-    for fase in fases_data:
-        for i, para in enumerate(doc.paragraphs):
-            if para.text.strip() == fase["tituloFase"]:
-                tabla = doc.add_table(rows=1, cols=4)
-                tabla.style = 'Table Grid'
-                headers = ["N°", "Acción", "Detalle", "Excepción"]
-                for j, h in enumerate(headers):
-                    cell = tabla.rows[0].cells[j]
-                    cell.text = h
-                    # Fondo naranja
-                    tcPr = cell._tc.get_or_add_tcPr()
-                    shd = OxmlElement('w:shd')
-                    shd.set(qn('w:fill'), 'ED7D31')
-                    shd.set(qn('w:val'), 'clear')
-                    shd.set(qn('w:color'), 'auto')
-                    tcPr.append(shd)
-                    # Texto blanco y negrita
-                    run = cell.paragraphs[0].runs[0]
-                    run.bold = True
-                    run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-                for paso in fase["pasos"]:
-                    row = tabla.add_row()
-                    row.cells[0].text = paso["numero"]
-                    row.cells[1].text = paso["accion"]
-                    row.cells[2].text = paso["detalle"]
-                    row.cells[3].text = paso.get("excepcion_numero", "")
-                para._p.addnext(tabla._tbl)
-                break
     
-    WIDTHS_FASES        = [Inches(0.6), Inches(2.0), Inches(3.3), Inches(0.9)]
+    WIDTHS_PRECONDICIONES  = [Inches(0.6), Inches(1.4), Inches(4.7)]
+    WIDTHS_FASES        = [Inches(0.6), Inches(1.5), Inches(3.2), Inches(1.4)]
     WIDTHS_EXCEPCIONES  = [Inches(0.6), Inches(2.4), Inches(3.7)]
     
     for tabla in doc.tables:
         primera_fila = [c.text.strip() for c in tabla.rows[0].cells] if tabla.rows else []
 
-        if "Acción" in primera_fila and "Detalle" in primera_fila:
+        if "N°" in primera_fila and "Precondición" in primera_fila and "Detalle" in primera_fila:
+            set_col_widths(tabla, WIDTHS_PRECONDICIONES)
+
+        elif "Acción" in primera_fila and "Detalle" in primera_fila:
             set_col_widths(tabla, WIDTHS_FASES)
 
-        elif "Escenario" in primera_fila or "Excepción" in primera_fila:
+        elif "N°" in primera_fila and "Escenario" in primera_fila and "Acción" in primera_fila:
             set_col_widths(tabla, WIDTHS_EXCEPCIONES)
     
     output_buffer = BytesIO()
@@ -169,12 +141,6 @@ def generate_PDD(tpl, context: dict):
     output_buffer.seek(0)
     
     return output_buffer
-    
-class KeepUndefined(Undefined):
-    def __str__(self):
-        return f"{{{{{self._undefined_name}}}}}"
-    def __repr__(self):
-        return f"{{{{{self._undefined_name}}}}}"
 
 def crear_subdoc_fase(tpl, fase):
     """Crea un subdocumento con título + tabla para una fase."""
@@ -193,37 +159,91 @@ def crear_subdoc_fase(tpl, fase):
         row.cells[2].text = paso["detalle"]
         #row.cells[3].text = paso.get("excepcion_numero", "")
     return sd
+            
+def load_img(field=None, height=5, tpl=None, context=None):
+    image = st.session_state.get(field, None)
+    diagram = ""
+    
+    if image:
+        try:
+            image_stream = BytesIO(image)
+            image_stream.seek(0)
+            diagram = InlineImage(tpl, image_descriptor=image_stream, height=Inches(height))
+        except Exception as e:
+            diagram = "[Error al cargar imagen: " + str(e) + "]"
+        
+    context[field] = diagram
 
-def set_col_widths(tabla, widths):
-    for row in tabla.rows:
+# ELIMINA CARACTERES < y > para evitar problemas con el XML del docx ---------------------------------
+def sanitize_all(data):
+    if isinstance(data, dict):
+        return {k: sanitize_all(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_all(i) for i in data]
+    elif isinstance(data, str):
+        return data.replace("<", "&lt;").replace(">", "&gt;")
+    return data
+
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from lxml import etree
+
+def set_col_widths(table, widths):
+    """
+    Fuerza el ancho de columnas en una tabla word-docx.
+    Desactiva autofit y opera directamente sobre XML para evitar
+    que Word expanda celdas con texto largo sin espacios.
+    """
+    # 1. Forzar layout fijo (desactiva autofit)
+    tbl = table._tbl
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    tblLayout = tblPr.find(qn('w:tblLayout'))
+    if tblLayout is None:
+        tblLayout = OxmlElement('w:tblLayout')
+        tblPr.append(tblLayout)
+    tblLayout.set(qn('w:type'), 'fixed')
+
+    # 2. Setear ancho total de la tabla
+    total_emu = sum(w.inches * 914400 for w in widths)
+    total_twips = int(sum(w.inches * 1440 for w in widths))
+
+    tblW = tblPr.find(qn('w:tblW'))
+    if tblW is None:
+        tblW = OxmlElement('w:tblW')
+        tblPr.append(tblW)
+    tblW.set(qn('w:w'), str(total_twips))
+    tblW.set(qn('w:type'), 'dxa')
+
+    # 3. Forzar ancho en cada celda de cada fila
+    for row in table.rows:
         for i, cell in enumerate(row.cells):
-            cell.width = widths[i]
-            
-def generar_imagen(field=None, height=5, tpl=None, context=None):
-    mermaidCode = context.get(field, "")
+            if i >= len(widths):
+                break
+            width_twips = int(widths[i].inches * 1440)
+            tc = cell._tc
+            tcPr = tc.find(qn('w:tcPr'))
+            if tcPr is None:
+                tcPr = OxmlElement('w:tcPr')
+                tc.insert(0, tcPr)
 
-    if mermaidCode == "":
-        return
-    
-    with tempfile.TemporaryDirectory() as tmpdir:
-        mmd_path = f"{tmpdir}/diagrama.mmd"
-        png_path = f"{tmpdir}/diagrama.png"
+            tcW = tcPr.find(qn('w:tcW'))
+            if tcW is None:
+                tcW = OxmlElement('w:tcW')
+                tcPr.insert(0, tcW)
+            tcW.set(qn('w:w'), str(width_twips))
+            tcW.set(qn('w:type'), 'dxa')
 
-        # Crear .mmd temporal
-        with open(mmd_path, "w", encoding="utf-8") as f:
-            f.write("%%{init: {\"theme\": \"neutral\", \"flowchart\": {\"curve\": \"stepAfter\", \"rankSpacing\": 40}}}%%\n" + mermaidCode + "\nlinkStyle default stroke-width:4px;")
-
-        # Generar imagen
-        subprocess.run(
-            f"mmdc -i {mmd_path} -o {png_path} -w 1200 -H 600",
-            shell=True,
-            check=True
-        )
-
-        with open(png_path, "rb") as f:
-            image_stream = BytesIO(f.read())
-            
-    # Insertar imagen
-    image = InlineImage(tpl, image_descriptor=image_stream, height=Inches(height))
-    context[field] = image
-    
+            # 4. Activar word wrap en cada párrafo de la celda
+            for para in cell.paragraphs:
+                pPr = para._p.find(qn('w:pPr'))
+                if pPr is None:
+                    pPr = OxmlElement('w:pPr')
+                    para._p.insert(0, pPr)
+                # Desactivar "no wrap"
+                wordWrap = pPr.find(qn('w:wordWrap'))
+                if wordWrap is not None:
+                    pPr.remove(wordWrap)

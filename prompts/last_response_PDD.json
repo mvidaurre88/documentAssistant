@@ -1,0 +1,194 @@
+{"codigoBot": "",
+"nombreBot": "Mapas de Calor",
+"cliente": "",
+"desarrollador": "",
+"version": "",
+"modificaciones": [],
+"revision": [],
+"propositoProceso": "El proceso tiene como objetivo generar mapas de calor y propuestas de intercambio de productos en almacenes, mediante la extracción y procesamiento automático de datos de SAP y archivos locales. Esto permite analizar y optimizar la disposición de los productos, actualizando la información diariamente.",
+"diagramaAltoNivel": "graph TD\n    A[START] --> B(Obtener archivos base y diarios);\n    B --> C(Extraer y procesar datos de SAP);\n    C --> D(Consolidar información y actualizar archivos de mapa);\n    D --> E(Generar propuesta de intercambios);\n    E --> F[END];",
+"diagramaBajoNivel": "graph TD\n    START([START]) --> A(Copiar y renombrar archivo sistema);\n    A --> B{¿Archivo copiado?};\n    B -- No --> E1(Log error copia y salir) --> END;\n    B -- Si --> C(Acceder SAP MCL5 - Venta Historica);\n    C --> D(Completar centro y mov. 601 - Venta Historica);\n    D --> D1{¿Fechas validas?};\n    D1 -- No --> E2(Log error fecha y salir) --> END;\n    D1 -- Si --> E(Desglosar por material - Venta Historica);\n    E --> F(Exportar TXT Venta Historica);\n    F --> G(Acceder SAP MCL5 - Venta Ultimo Mes);\n    G --> H(Completar centro y mov. 601 - Venta Ultimo Mes);\n    H --> H1{¿Fechas validas?};\n    H1 -- No --> E2 --> END;\n    H1 -- Si --> I(Desglosar por material - Venta Ultimo Mes);\n    I --> J(Exportar TXT Venta Ultimo Mes);\n    J --> K(Acceder SAP LX29 - Stock);\n    K --> L(Completar almacen TIC y centro - Stock);\n    L --> M(Exportar TXT Stock);\n    M --> N(Acceder SAP MCL5 - Reposiciones);\n    N --> O(Completar centro, mov. 919-920 - Reposiciones);\n    O --> O1{¿Fechas validas?};\n    O1 -- No --> E2 --> END;\n    O1 -- Si --> P(Desglosar por material - Reposiciones);\n    P --> Q(Exportar TXT Reposiciones);\n    Q --> R(Acceder a disco compartido - Archivo Tipo Ubicacion);\n    R --> R1{¿Permisos de acceso?};\n    R1 -- No --> E3(Log error permisos y salir) --> END;\n    R1 -- Si --> S(Copiar archivo Tipo Ubicacion);\n    S --> S1{¿Archivo Tipo Ubicacion valido?};\n    S1 -- No --> E4(Log error archivo invalido y salir) --> END;\n    S1 -- Si --> T(Abrir archivo mapa de calor XLSX);\n    T --> U(Presionar Actualizar todo en Datos);\n    U --> V(Ejecutar macro Generar Intercambios);\n    V --> W(Ingresar parametros - 0, 0, estante alto);\n    W --> X(Verificar hoja intercambios generada);\n    X --> END([END]);",
+"entradas": [
+"Archivo generado por sistema con formato CCCCYYMMDD.TXT",
+"Datos de la transacción SAP MCL5 (Venta Histórica, Venta Último Mes, Reposiciones)",
+"Datos de la transacción SAP LX29 (Stock)",
+"Archivo de Tipo de Ubicación (XLSXE) aportado por cada centro"
+],
+"salidas": [
+"Archivos TXT de venta histórica (con formato del centro)",
+"Archivos TXT de venta del último mes (con formato del centro)",
+"Archivos TXT de stock (con formato del centro)",
+"Archivos TXT de reposiciones (con formato del centro)",
+"Archivos XLSXE de mapas de calor actualizados con propuesta de intercambios"
+],
+"carpetaCompartida": "\\sistemasvarios\\RPA, disco compartido público, P:\\RPA\\BotSlottingSucursales",
+"carpetaOutput": "P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\",
+"carpetaInput": "P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\",
+"contactos": [
+"Paty",
+"Santiago",
+"Marcos",
+"Chiqui",
+"Mati",
+"Roque"
+],
+"ejecucion": "Diaria y cíclica",
+"excepciones": [
+{
+"tipo": "tecnica",
+"escenario": "Día no existe en el calendario (ej: 31 de noviembre) al calcular rangos de fechas para SAP.",
+"accion": "El RPA debe programar las fechas con precisión para evitar días inexistentes."
+},
+{
+"tipo": "tecnica",
+"escenario": "Bot no tiene permisos de acceso para copiar archivos desde el disco compartido.",
+"accion": "Se debe solicitar y otorgar los permisos necesarios para el Bot, o usar un script existente si es aplicable."
+},
+{
+"tipo": "de negocio",
+"escenario": "Centros modifican archivos base (Tipo de Ubicación) sin curación o auditoría, rompiendo el proceso.",
+"accion": "La actualización de estos archivos por parte de los centros debe estar regulada y auditada para asegurar la integridad de los datos y evitar que el mapa salga roto."
+}
+],
+"fases": [
+{
+"tituloFase": "1. Preparación de Archivos Base",
+"pasos": [
+{
+"accion": "Copiar y renombrar archivo del sistema",
+"detalle": "El Bot o un batch genera un archivo con formato CCCCYYMMDD.TXT en la ubicación \\sistemasvarios\\RPA. El RPA debe copiarlo a una carpeta centralizada P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\ y renombrarlo si es necesario para que el mapa lo encuentre.",
+"excepciones": ""
+}
+]
+},
+{
+"tituloFase": "2. Extracción de Datos de Venta Histórica (SAP MCL5)",
+"pasos": [
+{
+"accion": "Acceder a la transacción SAP MCL5",
+"detalle": "El RPA ingresa a la transacción MCL5.",
+"excepciones": ""
+},
+{
+"accion": "Completar datos y parámetros para venta histórica",
+"detalle": "Ingresar las 3 letras del centro, el movimiento 601, y un rango de fechas de 122 días para atrás hasta 32 días para atrás (equivalente a 90 días sin contar los últimos 30). Se deben excluir algunos centros específicos (los que el RPA deba saber).",
+"excepciones": "Día no existe en el calendario (ej: 31 de noviembre) al calcular rangos de fechas para SAP."
+},
+{
+"accion": "Desglosar información por material",
+"detalle": "Presionar el botón 'Cambiar desglose' y seleccionar la opción 'Material' para detallar la venta por cada material.",
+"excepciones": ""
+},
+{
+"accion": "Exportar y guardar el archivo de venta histórica",
+"detalle": "Exportar la información como 'Texto con tabuladores' (.TXT). Guardar el archivo con el nombre que incluya las 4 letras del centro en la ubicación P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\. Se debe configurar para reemplazar el archivo existente si ya hay uno.",
+"excepciones": ""
+}
+]
+},
+{
+"tituloFase": "3. Extracción de Datos de Venta Último Mes (SAP MCL5)",
+"pasos": [
+{
+"accion": "Repetir extracción de datos de venta para el último mes",
+"detalle": "El RPA repite el proceso de la Fase 2, pero con un rango de fechas para los últimos 30 días, usando el movimiento 601.",
+"excepciones": "Día no existe en el calendario (ej: 31 de noviembre) al calcular rangos de fechas para SAP."
+},
+{
+"accion": "Exportar y guardar el archivo de venta del último mes",
+"detalle": "Exportar la información como 'Texto con tabuladores' (.TXT). Guardar el archivo con el nombre que incluya las 4 letras del centro en la ubicación P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\. Se debe configurar para reemplazar el archivo existente si ya hay uno.",
+"excepciones": ""
+}
+]
+},
+{
+"tituloFase": "4. Extracción de Datos de Stock (SAP LX29)",
+"pasos": [
+{
+"accion": "Acceder a la transacción SAP LX29",
+"detalle": "El RPA ingresa a la transacción LX29.",
+"excepciones": ""
+},
+{
+"accion": "Completar datos y parámetros de stock",
+"detalle": "Ingresar 'TIC' en el campo 'Almacén', las 3 letras del centro, y asegurarse de que otros campos estén vacíos. Tildar todos los casilleros para la visualización de la información.",
+"excepciones": ""
+},
+{
+"accion": "Exportar y guardar el archivo de stock",
+"detalle": "Exportar la información como 'Texto con tabuladores' (.TXT). Guardar el archivo con el nombre que incluya las 4 letras del centro en la ubicación P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\. Se debe configurar para reemplazar el archivo existente si ya hay uno.",
+"excepciones": ""
+}
+]
+},
+{
+"tituloFase": "5. Extracción de Datos de Reposiciones (SAP MCL5)",
+"pasos": [
+{
+"accion": "Acceder a la transacción SAP MCL5 para reposiciones",
+"detalle": "El RPA ingresa a la transacción MCL5.",
+"excepciones": ""
+},
+{
+"accion": "Completar datos y parámetros para reposiciones",
+"detalle": "Ingresar las 3 letras del centro, el movimiento 919 (reposición automática) y 920 (para Avellaneda y manuales si aplica), y un rango de fechas para el último mes.",
+"excepciones": "Día no existe en el calendario (ej: 31 de noviembre) al calcular rangos de fechas para SAP."
+},
+{
+"accion": "Desglosar información por material",
+"detalle": "Presionar el botón 'Cambiar desglose' y seleccionar la opción 'Material' para detallar las reposiciones por cada material.",
+"excepciones": ""
+},
+{
+"accion": "Exportar y guardar el archivo de reposiciones",
+"detalle": "Exportar la información como 'Texto con tabuladores' (.TXT). Guardar el archivo con el nombre que incluya las 4 letras del centro en la ubicación P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\. Se debe configurar para reemplazar el archivo existente si ya hay uno.",
+"excepciones": ""
+}
+]
+},
+{
+"tituloFase": "6. Recuperación de Archivo de Tipo de Ubicación",
+"pasos": [
+{
+"accion": "Acceder a disco compartido para archivo de tipo de ubicación",
+"detalle": "El RPA accede al disco compartido público para obtener el archivo de tipo de ubicación.",
+"excepciones": "Bot no tiene permisos de acceso para copiar archivos desde el disco compartido."
+},
+{
+"accion": "Copiar archivo de tipo de ubicación",
+"detalle": "Copiar el archivo de tipo de ubicación (formato XLSXE) aportado por cada centro.",
+"excepciones": "Centros modifican archivos base (Tipo de Ubicación) sin curación o auditoría, rompiendo el proceso."
+}
+]
+},
+{
+"tituloFase": "7. Actualización de Mapas de Calor y Generación de Propuestas",
+"pasos": [
+{
+"accion": "Abrir archivo de mapa de calor del centro",
+"detalle": "El RPA abre el archivo de mapa de calor (XLSXE) correspondiente al centro desde la carpeta P:\\RPA\\BotSlottingSucursales\\<nombre_centro>\\.",
+"excepciones": ""
+},
+{
+"accion": "Actualizar datos del mapa",
+"detalle": "Dentro del archivo Excel, navegar al menú 'Datos' y presionar el botón 'Actualizar todo'. Esto carga los archivos de datos generados en fases anteriores.",
+"excepciones": ""
+},
+{
+"accion": "Ejecutar macro para generar intercambios",
+"detalle": "El RPA ejecuta una macro (directamente o mediante un atajo Control+Shift+W) que genera una propuesta de cambios de productos. Se puede considerar una macro específica para el Bot con parámetros fijos y que actualice los datos al inicio.",
+"excepciones": ""
+},
+{
+"accion": "Ingresar parámetros para generación de intercambios",
+"detalle": "La macro requiere ingresar parámetros: 0 para todas las estaciones, 0 para todos los tipos de ubicación, y especificar el 'estante más alto' del centro (esto último requiere una solución genérica).",
+"excepciones": ""
+},
+{
+"accion": "Asegurar que la hoja de propuestas de intercambios esté generada",
+"detalle": "Una vez ejecutada la macro, la hoja 'intercambios' dentro del archivo de mapa de calor debe quedar poblada con la propuesta de cambios.",
+"excepciones": ""
+}
+]
+}
+]}
