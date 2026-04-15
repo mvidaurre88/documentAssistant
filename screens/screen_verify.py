@@ -344,6 +344,7 @@ def render_sdd(data: dict) -> dict:
             }
         ],
         empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []})
+    data["solucionTecnicaDetallada"] = st.session_state["list_solucionTecnicaDetallada"]
     
     # EXCEPCIONES ---------------------------------------------------------------------------------------
     data["excepciones"] = list_dict_section(
@@ -786,3 +787,5 @@ def _render_inline_list(item, fc, parent_field, parent_uid):
         item[subfield] = st.session_state[key]
         st.session_state[counter_key] = counter + 1
         st.rerun()
+        
+    item[subfield] = st.session_state[key]

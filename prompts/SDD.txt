@@ -58,7 +58,7 @@ Estructura JSON (SDD Técnico)
       "descripcionExacta": "<Descripción detallada y técnica de las acciones paso a paso que realiza esta tarea específica. Usá saltos de linea para que no quede como un párrafo>",
       "excepciones": [
         {
-          "evento": "<Descripción del error, ej: Falla de login, Archivo bloqueado, Ruta inaccesible. Y que hace el bot ante este error, ej: Finaliza proceso y notifica a Soporte RPA>",
+          "evento": "<Descripción del error, ej: Falla de login, Archivo bloqueado, Ruta inaccesible. Y que hace el bot ante este error, ej: Finaliza proceso y notifica a Soporte RPA>"
         }
       ]
     }
