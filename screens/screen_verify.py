@@ -1,6 +1,4 @@
-import json5
-import json, re, traceback, base64, streamlit as st
-import streamlit.components.v1 as components
+import json5, re, traceback, base64, streamlit as st
 from datetime import date
 from utils.navigation import *
 from components.top_bar import top_bar
@@ -670,7 +668,7 @@ def show_img_overlay(img_bytes, key="overlay"):
     }})();
     </script>
     """
-    components.html(html, height=0)
+    st.iframe(html, height=0)
 
     # Botón que dispara el evento custom en el padre
     open_html = f"""
@@ -685,7 +683,7 @@ def show_img_overlay(img_bytes, key="overlay"):
         border-radius: 4px;
     ">Ver</button>
     """
-    components.html(open_html, height=40)
+    st.iframe(open_html, height=40)
 
 # FIX COMPLETO de _render_inline_list
 # Corrige bugs 1, 2, 3 y 4: inicialización de session_state, sincronización
