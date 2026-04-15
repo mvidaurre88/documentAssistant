@@ -15,9 +15,13 @@ Instrucciones de Análisis:
 - Solución Técnica Detallada: Para cada tarea del proceso (ignorando Main, Setup, Config y Clean), redacta una descripción técnica y exacta del paso a paso (qué lee, dónde hace clic, qué valida). Esta descripcion, debe estar muy bien detallada. Dentro de cada tarea, lista las excepciones que podrían ocurrir en esa ejecución puntual y qué acción toma el bot para manejarlas.
 
 Reglas de Formato:
-- Devuelve ÚNICAMENTE el JSON.
-- Si no hay información para un campo, usa "" o [].
-- No incluyas referencias, citas ni etiquetas del tipo en los valores del JSON.
+- Usa codificación UTF-8
+- Devuelve ÚNICAMENTE un objeto JSON válido.
+- No incluyas explicaciones, texto adicional ni formato markdown.
+- El JSON debe ser parseable directamente con json.loads() en Python.
+- Si un campo no aparece claramente o no estás seguro, déjalo vacío ("") o como lista vacía ([]).
+- No inventes información.
+- Mantén exactamente la misma estructura del JSON.
 - Si pones comillas, ponelas así \" para que no se rompa el JSON.
 
 Regla especial:
@@ -74,8 +78,8 @@ Estructura JSON (SDD Técnico)
         "comentarios": "<comentarios adicionales, ej: Para acceder a tal funcionalidad>"
     }
   ],
-  "diagrama_pasos": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el flujo de este proceso. Utilizando el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). Reglas estrictas del diagrama: 1) El nodo inicial debe ser 'START' con bordes curvos, ej: START([START]). 2) De START deben desprenderse tres tareas comunes secuenciales (NO PARALELAS): 'main' -> 'setup' -> 'config' pero teniendo en cuenta la nomenclatura definida para el bot. 3) Desarrolla el resto del flujo lógico de la automatización a partir de esas ramas. 4) Luego de estas tareas, insertar una tarea comun de "notificaciones", tambien respetando la nomenclatura del Bot. 5) Todos los caminos del proceso deben converger y finalizar en un único nodo 'END', ej: END([END]). 6) Las tareas comunes deben tener color celeste y las propias del bot color amarillo.">",
-  "diagrama_detalle": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo de proceso completo y a bajo nivel. Utiliza el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). Reglas estrictas: 1) El nodo inicial debe ser START([START]) y el final END([END]). 2) Representa el paso a paso detallado de las tareas específicas del bot. 3) Debes incluir nodos de decisión (forma de rombo, ej: dec1{¿Existe carpeta?}) para evaluar las condiciones del proceso. 4) A partir de las decisiones, grafica explícitamente los caminos de las excepciones técnicas (ej: fallo de acceso al Excel/SharePoint) y de negocio (ej: documento faltante, nomenclatura errónea, sin sufijo -vf). 5) Indica la acción que toma el bot ante cada excepción (ej: Registrar Erróneo, Enviar Mail, Siguiente empleado). 6) Todos los caminos, tanto el flujo ideal (Happy Path) como los desvíos por excepciones, deben converger correctamente para que el diagrama finalice en el único nodo END.>",
+  "diagrama_pasos": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el flujo de este proceso. Utilizando el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). No uses corchetes ni paréntesis dentro del texto de los nodos. Reglas estrictas del diagrama: 1) El nodo inicial debe ser 'START' con bordes curvos, ej: START([START]). 2) De START deben desprenderse tres tareas comunes secuenciales (NO PARALELAS): 'main' -> 'setup' -> 'config' pero teniendo en cuenta la nomenclatura definida para el bot. 3) Desarrolla el resto del flujo lógico de la automatización a partir de esas ramas. 4) Luego de estas tareas, insertar una tarea comun de "notificaciones", tambien respetando la nomenclatura del Bot. 5) Todos los caminos del proceso deben converger y finalizar en un único nodo 'END', ej: END([END]). 6) Las tareas comunes deben tener color celeste y las propias del bot color amarillo.">",
+  "diagrama_detalle": "<Genera el código en sintaxis Mermaid.js (graph TD) que represente el diagrama de flujo de proceso completo y a bajo nivel. Utiliza el carácter '\\n' para los saltos de línea (no uses saltos de línea reales). No uses corchetes ni paréntesis dentro del texto de los nodos. Reglas estrictas: 1) El nodo inicial debe ser START([START]) y el final END([END]). 2) Representa el paso a paso detallado de las tareas específicas del bot. 3) Debes incluir nodos de decisión (forma de rombo, ej: dec1{¿Existe carpeta?}) para evaluar las condiciones del proceso. 4) A partir de las decisiones, grafica explícitamente los caminos de las excepciones técnicas (ej: fallo de acceso al Excel/SharePoint) y de negocio (ej: documento faltante, nomenclatura errónea, sin sufijo -vf). 5) Indica la acción que toma el bot ante cada excepción (ej: Registrar Erróneo, Enviar Mail, Siguiente empleado). 6) Todos los caminos, tanto el flujo ideal (Happy Path) como los desvíos por excepciones, deben converger correctamente para que el diagrama finalice en el único nodo END.>",
   "archivos": [
     {
       "nombre": "<nombre del archivo utilizado por el Bot. No tener en cuenta el archivo de config>",
