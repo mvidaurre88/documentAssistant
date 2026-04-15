@@ -668,10 +668,7 @@ def show_img_overlay(img_bytes, key="overlay"):
     }})();
     </script>
     """
-    with st.container():
-        st.markdown('<div style="display:none">', unsafe_allow_html=True)
-        st.iframe(html, height=1)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.html(html)
 
     # Botón que dispara el evento custom en el padre
     open_html = f"""
@@ -686,7 +683,7 @@ def show_img_overlay(img_bytes, key="overlay"):
         border-radius: 4px;
     ">Ver</button>
     """
-    st.iframe(open_html, height=40)
+    st.html(html)
 
 # FIX COMPLETO de _render_inline_list
 # Corrige bugs 1, 2, 3 y 4: inicialización de session_state, sincronización
