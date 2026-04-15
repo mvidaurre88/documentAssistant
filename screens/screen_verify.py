@@ -253,7 +253,7 @@ def render_sdd(data: dict) -> dict:
             item["excepciones"] = [
                 {
                 "_id": f"{j}_{e}",
-                "value": v if isinstance(v, str) else v.get("value", v.get("evento", ""))
+                "evento": v if isinstance(v, str) else v.get("value", v.get("evento", ""))
                 }
                 for e, v in enumerate(exc_raw)
             ]
