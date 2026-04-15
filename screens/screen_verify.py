@@ -683,7 +683,7 @@ def show_img_overlay(img_bytes, key="overlay"):
         border-radius: 4px;
     ">Ver</button>
     """
-    st.html(html)
+    st.html(open_html)
 
 # FIX COMPLETO de _render_inline_list
 # Corrige bugs 1, 2, 3 y 4: inicialización de session_state, sincronización
