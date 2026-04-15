@@ -1,3 +1,5 @@
+from streamlit.components.v1 import html
+
 def render_stepper(st, step):
     steps = ["Inicio", "Cargar datos", "Generar archivo", "Verificar datos", "Fin"]
     actual = step
@@ -72,4 +74,4 @@ def render_stepper(st, step):
 
     svg += "</svg>"
 
-    st.iframe(svg, height=120)
+    html(svg, height=120)

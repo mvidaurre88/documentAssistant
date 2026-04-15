@@ -330,15 +330,20 @@ def render_sdd(data: dict) -> dict:
     )
     
     # SOLUCION TECNICA DETALLADA ----------------------------------------------------------------------
+    # Dentro de def render_sdd(data: dict):
+# ...
     data["solucionTecnicaDetallada"] = list_dict_section(
         "Solución Técnica Detallada", "solucionTecnicaDetallada", "Tareas", "Tarea",
         fields_config=[
             {"label": "Nombre de tarea", "key": "nombreTarea"},
             {"label": "Descripción exacta de tarea", "key": "descripcionExacta", "multiline": True},
-            {"label": "Excepciones", "key": "excepciones", "type": "list"}
+            {"label": "Excepciones", "key": "excepciones", "type": "list",
+                "subfields": [
+                    {"label": "Evento de Excepción", "key": "evento"} # ESTO ES CLAVE
+                ]
+            }
         ],
-        empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []}
-    )
+        empty_item={"nombreTarea": "", "descripcionExacta": "", "excepciones": []})
     
     # EXCEPCIONES ---------------------------------------------------------------------------------------
     data["excepciones"] = list_dict_section(
@@ -716,18 +721,21 @@ def _render_inline_list(item, fc, parent_field, parent_uid):
         uid = subitem["_id"]
 
         # FIX 3: si hay subfields definidos, renderizar cada campo nombrado
+        # Dentro del bucle: for subitem in st.session_state[key]:
         if subfields:
             col_exp, col_btn = st.columns([10, 1])
             with col_exp:
                 with st.expander(f"{label.rstrip('s')} {uid}", expanded=True):
                     for sf in subfields:
-                        field_row(
+                        # Capturamos el retorno de field_row y lo asignamos al subitem
+                        res = field_row(
                             sf["label"],
                             sf["key"],
                             subitem,
                             key_prefix=f"{key}_{uid}_",
                             multiline=sf.get("multiline", False)
                         )
+                        subitem[sf["key"]] = res
             with col_btn:
                 if st.button("✕", key=f"del_{key}_{uid}"):
                     st.session_state[key] = [

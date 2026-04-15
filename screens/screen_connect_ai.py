@@ -85,7 +85,6 @@ def screen_connect_ai():
             st.session_state.diagramaAltoNivel = generate_mermaid_img(data.get("diagramaAltoNivel", ""))
         with st.spinner("Generando diagramas..."):
             st.session_state.diagramaBajoNivel = generate_mermaid_img(data.get("diagramaBajoNivel", ""))
-            print(f"[DEBUG] diagramaBajoNivel: {type(st.session_state.diagramaBajoNivel)}, len: {len(st.session_state.diagramaBajoNivel) if st.session_state.diagramaBajoNivel else 'None'}")
     elif st.session_state.doc_type == "SDD":
         with st.spinner("Generando diagramas..."):
             st.session_state.diagrama_pasos = generate_mermaid_img(data.get("diagrama_pasos", ""))
