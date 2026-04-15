@@ -1,4 +1,4 @@
-import os, base64, logging
+import base64, logging, streamlit as st
 from pathlib import Path
 from docx import Document
 from google import genai
@@ -63,7 +63,7 @@ def encode_file(path: Path):
 def send_to_gemini(promptPath: str, filePaths: list, maxTokens: int = 4096) -> str:
     
     # OBTENGO LA API KEY -----------------------------------------------------------------------------
-    key = os.environ.get("API_KEY")
+    key = st.secrets.get("API_KEY")
     if not key:
         logger.error("API_KEY no encontrada en las variables de entorno.")
         raise EnvironmentError("API_KEY no encontrada en las variables de entorno.")
