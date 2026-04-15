@@ -48,7 +48,7 @@ Estructura JSON (SDD Técnico)
   "procesoNegocioAltoNivel": "<párrafo que comience con la frase "El BOT [codigo bot]..." y completa la idea describiendo los hitos principales del bot (ej: descarga 	de documentos, validación en portales, carga de resultados) basándote en el propósito general descrito en los inputs.>"
   "solucionTecnicaAltoNivel": [
     { 
-      "nombreTarea": "<nombre, ej: VW_PROD002_LoginAtlas>", 
+      "nombreTarea": "<nombre o nomenclatura de la tarea. Muchas veces se nombran en el PDD, ej: VW_PROD002_LoginAtlas>", 
       "descripcionTarea": "<Breve descripcion de lo que hace la tarea>"
     }
   ],
