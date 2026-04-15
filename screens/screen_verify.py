@@ -668,7 +668,10 @@ def show_img_overlay(img_bytes, key="overlay"):
     }})();
     </script>
     """
-    st.iframe(html, height=0)
+    with st.container():
+        st.markdown('<div style="display:none">', unsafe_allow_html=True)
+        st.iframe(html, height=1)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # Botón que dispara el evento custom en el padre
     open_html = f"""
