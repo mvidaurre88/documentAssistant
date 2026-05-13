@@ -1,6 +1,9 @@
 docxtpl
+xlsxtpl
 python-docx
 jinja2
-google-genai
+anthropic
 json5
 openpyxl
+mammoth
+graphviz>=0.20

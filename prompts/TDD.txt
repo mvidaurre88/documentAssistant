@@ -1,0 +1,96 @@
+Tu objetivo es generar un TDD (Test Design Document) a partir de un PDD (Process Design Document) ya existente. El TDD describe los escenarios de prueba que validan el comportamiento del bot, tanto en el Happy Path como ante cada excepción capturada.
+
+Recibirás como input el contenido de un PDD (en formato JSON o texto) que contiene la descripción del proceso, sus fases, pasos y excepciones. Debés realizar ingeniería inversa sobre esa información para construir los escenarios de prueba.
+
+REGLAS IMPORTANTES:
+- Usá codificación UTF-8.
+- Devolvé ÚNICAMENTE un objeto JSON válido.
+- No incluyas explicaciones, texto adicional ni formato markdown.
+- El JSON debe ser parseable directamente con json.loads() en Python.
+- Si un campo no aparece claramente o no estás seguro, dejalo vacío ("") o como lista vacía ([]).
+- No inventes información que no se desprenda del PDD.
+- Mantené exactamente la misma estructura del JSON de salida.
+
+REGLAS DE ESTRUCTURA DE PASOS Y EXCEPCIONES:
+- Cada paso del proceso puede tener 0, 1 o N excepciones asociadas.
+- Las excepciones se listan DENTRO de su paso correspondiente, en el array "excepciones" del paso.
+- Una excepción pertenece a UN solo paso.
+- Si un paso no tiene excepciones, su array "excepciones" debe ser [].
+- Cada excepción mantiene su código (ej "EXC 0", "EXC 1"), descripción y tipo ("Técnica" o "Negocio").
+
+REGLAS DE GENERACIÓN DE ESCENARIOS (formato compacto):
+Los escenarios NO repiten los pasos del proceso. Solo declarás qué cambia respecto al flujo normal. La expansión a pasos detallados se hace después en código.
+
+Para cada caso de prueba indicá únicamente:
+- "excepcion": código de la excepción disparada (ej "EXC 1"). Para el Happy Path va null.
+- "pasoFalla": número del paso donde se dispara la excepción. Para el Happy Path va null.
+- "pasosFinalesEjecutados": lista de números de los pasos finales (típicamente notificación/informe) que SÍ se ejecutan después de la falla para reportar la excepción. Para el Happy Path va [].
+- "datosPrueba": diccionario { "numeroPaso": "dato relevante" } SOLO para los pasos donde el dato sea informativo (input específico, configuración, etc). Para los pasos no listados se asumirá "N/A".
+
+REGLAS DE AGRUPAMIENTO:
+1) El PRIMER escenario es siempre el Happy Path con un único caso (pasoFalla = null, pasosFinalesEjecutados = []).
+2) Los escenarios siguientes agrupan excepciones por etapa o recurso afectado del proceso (ej: "Problemas con la apertura del archivo de input" agrupa EXC "no hay archivo" y EXC "archivo vacío").
+3) Si una etapa tiene varias excepciones relacionadas (mismo paso o pasos consecutivos sobre el mismo recurso), agrupalas en un mismo escenario con múltiples casos (CASO 1, CASO 2...).
+4) Si una excepción es independiente, generá un escenario propio con un solo caso.
+
+FORMATO A DEVOLVER:
+{
+    "codigoBot": "<identificador del bot extraído del PDD>",
+    "nombreBot": "<nombre del bot extraído del PDD>",
+    "cliente": "<nombre del cliente extraído del PDD>",
+    "nombreProyecto": "<nombre del proyecto JIRA si se menciona, sino igual al nombreBot>",
+    "descripcionBot": "<descripción breve del bot derivada del propósito del proceso del PDD>",
+    "desarrollador": "<nombre del desarrollador>",
+    "inputsProceso": [
+        "<archivos o datos de entrada extraídos del PDD>"
+    ],
+    "pasosProceso": [
+        {
+            "numero": <número de orden del paso>,
+            "descripcion": "<descripción del paso del proceso>",
+            "excepciones": [
+                {
+                    "numero": "<n° de la excepción, ej EXC 0, EXC 1>",
+                    "descripcion": "<descripción de la excepción>",
+                    "tipo": "<Técnica o Negocio>"
+                }
+            ]
+        }
+    ],
+    "escenarios": [
+        {
+            "numero": <número del escenario, empezando en 1>,
+            "titulo": "<HAPPY PATH para el primero; descripción agrupadora para los demás>",
+            "casos": [
+                {
+                    "numero": <número del caso dentro del escenario>,
+                    "titulo": "<título descriptivo del caso>",
+                    "excepcion": "<código de la excepción o null para Happy Path>",
+                    "pasoFalla": <número del paso donde falla, o null>,
+                    "pasosFinalesEjecutados": [<números de pasos finales que sí se ejecutan>],
+                    "datosPrueba": {
+                        "<numeroPaso>": "<dato relevante>"
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+EJEMPLO DE LÓGICA:
+Si el PDD tiene 10 pasos y el paso 3 tiene la excepción EXC 0 ("no hay archivo input") y EXC 1 ("archivo vacío"):
+
+- Escenario 1 (Happy Path) → 1 caso con pasoFalla: null, pasosFinalesEjecutados: []
+- Escenario 2 ("Problemas con la apertura del archivo de input") → 2 casos:
+    * CASO 1: excepcion: "EXC 0", pasoFalla: 3, pasosFinalesEjecutados: [10]
+    * CASO 2: excepcion: "EXC 1", pasoFalla: 3, pasosFinalesEjecutados: [10]
+
+Ambos casos comparten que el paso 10 (notificación) sí se ejecuta para reportar la excepción al área correspondiente.
+
+NOTA SOBRE EXPANSIÓN POSTERIOR (informativa, no la apliques vos):
+El código que consume este JSON expandirá cada caso a la lista completa de pasos aplicando estas reglas:
+- Pasos con número < pasoFalla → "El paso se concretó como lo esperado."
+- Paso con número == pasoFalla → "El paso no pudo concretarse; por lo que el resultado de la prueba es correcto."
+- Pasos con número > pasoFalla y que estén en pasosFinalesEjecutados → "El paso se concretó como lo esperado."
+- Resto de pasos posteriores → "Se omitió el paso"
+- Para Happy Path (pasoFalla null) → todos los pasos van con "El paso se concretó como lo esperado."

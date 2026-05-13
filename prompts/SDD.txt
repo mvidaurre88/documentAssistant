@@ -36,7 +36,7 @@ Estructura JSON (SDD Técnico)
   "desarrollador": "<Nombre del desarrollador>",
   "modificaciones": [
     {
-      "version": "<Version>",
+      "version": "<Version con el formato X.X>",
       "fecha": "<Fecha>",
       "paginas": "<Paginas afectadas>",
       "motivo": "<motivo de la modificacion>",
@@ -91,18 +91,5 @@ Estructura JSON (SDD Técnico)
     "<prerequisitos necesario para que el bot funcione. Ej: acceso a X carpeta.>"
   ],
   "ejecucion" : "<forma en la que se va a ejecutar el bot. Puede ser a demanda o cada cierto tiempo. Aclarar si depende de algo para ejecutarse. ej: se ejecuta a las 18:00 de cada dia. Podes agregarle \n para que no parezca un parrafo.>",
-  "reejecucion": "<explicacion de como reejecutar el bot y en que casos hacerlo. Que inputs necesitamos y si se debe recrear algun escenario. Podes agregarle \n para que no parezca un parrafo.>",
-  "macros": [
-    {
-      "nombre": "<nombre de la macro.>",
-      "entorno": "<si se encuentra trabajando en el excel o en otro archivo externo>",
-      "funciones": [
-        {
-          "nombre": "<nombre de la sub>",
-          "resumen": "<descripción TECNICA de lo que hace la sub>"
-        }
-      ],
-      "condiciones": "<condiciones previas a ejecutar la macro.>"
-    }
-  ]
+  "reejecucion": "<explicacion de como reejecutar el bot y en que casos hacerlo. Que inputs necesitamos y si se debe recrear algun escenario. Podes agregarle \n para que no parezca un parrafo.>"
 }

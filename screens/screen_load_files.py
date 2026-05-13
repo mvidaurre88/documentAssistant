@@ -1,28 +1,49 @@
+#IMPORTS DE TERCEROS
 import streamlit as st
+
+# IMPORTS PROPIOS
 from components.top_bar import top_bar
-from utils.navigation import *
+from components.section_title import section_title
+from utils.navigation import go_to
 
 def screen_load_files():
     
-    # BARRA DE NAVEGACION
-    top_bar(title="Ingrese los archivos para analizar", back_to="select", show_stepper=True, step=1)
+    container = st.empty()
+    with container.container():
         
-    # CARGADOR DE ARCHIVOS
-    files = st.file_uploader("Subir archivos",type=["pdf", "png", "txt", "docx", "py", "xlsm"],accept_multiple_files=True,label_visibility="collapsed")
-    st.session_state.files = files
+        # CONSTANTES
+        mode = st.session_state.mode
+        
+        # BARRA DE NAVEGACION
+        top_bar(back_to="select", show_stepper=True, step=1)
+            
+        # CARGA DEL DOCUMENTO ANTERIOR
+        if mode == "update":
+            doc_type =st.session_state.doc_type
+            section_title(f"Cargá acá tu {doc_type} anterior", left=True)
+            file = st.file_uploader("Subir documento anterior", 
+                                    type=["pdf", "docx", "xlsx"], 
+                                    accept_multiple_files=False, 
+                                    label_visibility="collapsed")
+            st.session_state.file = file
+        
+        # CARGA DE ARCHIVOS ADICIONALES 
+        section_title("Cargá los archivos que tengas (transcripciones, screenshots, macros, código, etc)", left=True)
+        files = st.file_uploader("Subir archivos",
+                                 type=["pdf", "png", "txt", "docx", "py", "xlsm", "xlsx"],
+                                 accept_multiple_files=True,
+                                 label_visibility="collapsed")
+        st.session_state.files = files
 
-    # TEXTO INFORMATIVO
-    st.markdown(f"<h5 style='margin-top: 20px; margin-bottom: 10px;'>¿Que podes subir?</h5>", unsafe_allow_html=True)
-    st.markdown(f"<ul style='font-size: 13px;'><li>Documentación ya existente como el PDD/SDD anterior que quieras actualizar.</li><li>Transcripciones de entrevistas o reuniones relevantes.</li><li>Screenshots de sistemas, procesos o diagramas actuales.</li><li>Macros o codigo python que quieras incluir.</li></ul>", unsafe_allow_html=True)
-    
-    # BOTÓN AVANZAR
-    col_center = st.columns([3,1,3])[1]
-    with col_center:
-        clicked = st.button("Avanzar paso", use_container_width=True, type="primary")
+        # BOTÓN AVANZAR
+        with st.columns([3,1,3])[1]:
+            clicked = st.button("Avanzar paso", use_container_width=True, type="primary")
+            
     if clicked:
         if not files:
-            st.warning("Cargá al menos un archivo")
+            st.warning("Cargá al menos un archivo.")
+        elif mode == "update" and not st.session_state.file:
+            st.warning(f"Cargá tu {doc_type} anterior")
         else:
-            st.session_state.processing = True
-            st.empty()
+            container.empty()
             go_to("ai")

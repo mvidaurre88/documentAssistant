@@ -3,11 +3,11 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.shared import *
 from docx.oxml.ns import qn
-from utils.word_formatter import format_richtext, agregar_bookmark, agregar_link_interno
+from utils.word_formatter import format_richtext
 import os
-from jinja2 import Undefined
 import streamlit as st
 from io import BytesIO
+from utils.test_script_generator import generate
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,6 +27,8 @@ def generate_docx(jsonText: dict, document=None, mode=None):
         buffer = generate_SDD(tpl, jsonText)
     elif document == "PDD":
         buffer = generate_PDD(tpl, jsonText)
+    elif document == "TDD":
+        buffer = generate(jsonText)
     else:
         st.error("Error 500: Tipo de documento no soportado")
         return   
@@ -97,11 +99,6 @@ def generate_PDD(tpl, context: dict):
     context["excepcionesNeg"] = excepcionesNeg
     
     variables_template = tpl.get_undeclared_template_variables()
-
-    faltantes = [var for var in variables_template if var not in context]
-    vacios     = [key for key, value in context.items() if value == "" or value is None]
-    print("Campos faltantes:", faltantes)
-    print("Campos vacios:", vacios)
 
     variables_template = tpl.get_undeclared_template_variables()
     for var in variables_template:
@@ -183,7 +180,6 @@ def sanitize_all(data):
 
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-from lxml import etree
 
 def set_col_widths(table, widths):
     """

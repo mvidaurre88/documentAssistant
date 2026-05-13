@@ -1,0 +1,234 @@
+{
+    "codigoBot": "02308 BA-RPA-INTERNAL-DEV",
+    "nombreBot": "Legajos y formularios",
+    "cliente": "Ataway",
+    "nombreProyecto": "Legajos y formularios",
+    "descripcionBot": "Bot AVA #8 que automatiza la verificación de legajos y formularios de empleados, asegurando que estén completos y correctamente nombrados. Accede al archivo D-TM-BA-Control Monitor Profiles, identifica empleados desde la pestaña Profile Monitor, revisa sus carpetas personales en SharePoint y compara los archivos con las nomenclaturas definidas, generando una alerta en caso de faltantes o codificación incorrecta.",
+    "desarrollador": "Tomas Bognanni",
+    "inputsProceso": [
+        "Archivo Excel D-TM-Control Monitor Profiles.xlsx (ubicado en SharePoint)",
+        "Archivo de configuración ATW_Legajos y Formularios_Config",
+        "Acceso al sitio SharePoint con carpetas Legajos Digitales Activos, Legajos Digitales Inactivos y Logs del Bot"
+    ],
+    "pasosProceso": [
+        {
+            "numero": 1,
+            "descripcion": "Verificar la existencia de la ruta con los datos de entrada (acceso a la carpeta dentro de SharePoint donde se encuentra el archivo Excel D-TM-BA-Control Monitor Profiles).",
+            "excepciones": []
+        },
+        {
+            "numero": 2,
+            "descripcion": "Validación de acceso a SharePoint: verificar que la cuenta de servicio de Ataway posea permisos al repositorio principal, a las carpetas Legajos Digitales Activos, Legajos Digitales Inactivos y Logs del Bot, con permisos de lectura y escritura.",
+            "excepciones": []
+        },
+        {
+            "numero": 3,
+            "descripcion": "Acceso al archivo Excel D-TM-Control Monitor Profiles mediante el archivo de configuración ATW_Legajos y Formularios_Config.",
+            "excepciones": [
+                {
+                    "numero": "EXC 1",
+                    "descripcion": "No se puede ingresar al archivo Excel D-TM-Control Monitor Profiles. Finaliza el proceso y se notifica el error.",
+                    "tipo": "Técnica"
+                }
+            ]
+        },
+        {
+            "numero": 4,
+            "descripcion": "Lectura de rutas SharePoint desde el archivo Excel D-TM-BA-Control Monitor Profiles.",
+            "excepciones": []
+        },
+        {
+            "numero": 5,
+            "descripcion": "Lectura de Apellidos y Nombres desde la columna CARPETA, construido como APELLIDO (mayúsculas) + espacio + Nombre (primera letra en mayúscula).",
+            "excepciones": []
+        },
+        {
+            "numero": 6,
+            "descripcion": "Lectura de la nomenclatura desde la columna Documento, donde se encuentran las templates de cada documento.",
+            "excepciones": []
+        },
+        {
+            "numero": 7,
+            "descripcion": "Validación del formato correcto de fecha en la columna Fecha Alta AFIP (formato MM/dd/yyyy).",
+            "excepciones": []
+        },
+        {
+            "numero": 8,
+            "descripcion": "Construcción de listas de documentos: el Bot recorre la tabla de tipos documentales, identifica el tipo (Alta o Baja) y genera listas internas separadas para creación dinámica de columnas en el Output.",
+            "excepciones": []
+        },
+        {
+            "numero": 9,
+            "descripcion": "Lectura y Normalización de Datos de Empleado: obtiene ID Empleado, nombre de carpeta, fecha Alta AFIP, identifica fecha de egreso y normaliza formato de fecha, eliminando espacios y validando registros vacíos.",
+            "excepciones": []
+        },
+        {
+            "numero": 10,
+            "descripcion": "Inicialización y Construcción del Archivo Output: apertura del Excel de salida, ejecución de macro de limpieza, conservación de encabezados base y agregado dinámico de columnas para cada tipo de documento.",
+            "excepciones": []
+        },
+        {
+            "numero": 11,
+            "descripcion": "Ingreso a SharePoint: el Bot accede al sitio web de SharePoint y se posiciona dentro de la ruta correspondiente.",
+            "excepciones": [
+                {
+                    "numero": "EXC 2",
+                    "descripcion": "No existe ruta de SharePoint con datos de entrada. Finaliza el proceso y se notifica el error.",
+                    "tipo": "Técnica"
+                }
+            ]
+        },
+        {
+            "numero": 12,
+            "descripcion": "Control de Existencia de Carpeta: para cada empleado el Bot valida la existencia de carpeta en Legajos Digitales Activos y Legajos Digitales Inactivos.",
+            "excepciones": []
+        },
+        {
+            "numero": 13,
+            "descripcion": "Obtención y Preparación de Archivos: el Bot obtiene la lista de archivos contenidos, extrae el nombre del archivo y construye listas internas para validación posterior, con política de reintentos controlados.",
+            "excepciones": []
+        },
+        {
+            "numero": 14,
+            "descripcion": "Búsqueda carpeta empleado: si el empleado no posee baja, su carpeta se encuentra en Legajos Digitales Activos; en caso de baja, en Legajos Digitales Inactivos.",
+            "excepciones": [
+                {
+                    "numero": "EXC 3",
+                    "descripcion": "No se encontró la carpeta del empleado. Se pasa al siguiente registro y continúa el proceso.",
+                    "tipo": "Negocio"
+                }
+            ]
+        },
+        {
+            "numero": 15,
+            "descripcion": "Comprobación de documentos: el Bot valida que se encuentren todos los documentos requeridos dentro de la carpeta del empleado, revisando solo los que incluyan -vf (versión final).",
+            "excepciones": []
+        },
+        {
+            "numero": 16,
+            "descripcion": "Validaciones realizadas: validación de apellido y nombre, extensión, nomenclatura (formato TipoDocumento-APELLIDO Nombre-yyyymm-vf.pdf) y fecha (yyyy mm extraída de Fecha Alta AFIP).",
+            "excepciones": []
+        },
+        {
+            "numero": 17,
+            "descripcion": "Validaciones de documentos: para cada documento se valida sufijo -vf, extensión esperada, inclusión correcta del apellido, extracción y comparación de fecha con Fecha Alta AFIP, coincidencia con template y validación estructural mediante expresión regular.",
+            "excepciones": [
+                {
+                    "numero": "EXC 4",
+                    "descripcion": "No se puede ingresar al archivo Excel Legajos y formularios Output. Finaliza el proceso y se notifica el error.",
+                    "tipo": "Técnica"
+                }
+            ]
+        },
+        {
+            "numero": 18,
+            "descripcion": "Armado de reporte final: el Bot registra en el archivo Legajos y formularios Output un estado para cada documento (Correcto, Erróneo, Archivo Faltante o '-' para empleados sin baja), incluyendo la columna ID Empleado con la dirección de correo registrada.",
+            "excepciones": []
+        },
+        {
+            "numero": 19,
+            "descripcion": "Envío de reporte final por mail con el detalle de la ejecución, registros exitosos y errores registrados, al destinatario hr-arg@ataway.com.",
+            "excepciones": []
+        },
+        {
+            "numero": 20,
+            "descripcion": "Envío de mail de notificación final del proceso: en caso exitoso con asunto 'BOT Legajos y formularios │ Notificación de proceso del Bot │ CORRECTO', o en caso de errores técnicos con asunto 'BOT Legajos y Formularios │ Notificación de proceso del Bot │ ERROR TÉCNICO', al destinatario hr-arg@ataway.com.",
+            "excepciones": []
+        }
+    ],
+    "escenarios": [
+        {
+            "numero": 1,
+            "titulo": "HAPPY PATH",
+            "casos": [
+                {
+                    "numero": 1,
+                    "titulo": "Ejecución exitosa del proceso completo: validación de legajos y formularios sin excepciones",
+                    "fechaEjecucion": "",
+                    "responsable": "",
+                    "excepcion": null,
+                    "pasoFalla": null,
+                    "pasosFinalesEjecutados": [],
+                    "datosPrueba": {
+                        "3": "Archivo D-TM-Control Monitor Profiles.xlsx accesible en SharePoint",
+                        "11": "Ruta de SharePoint válida y accesible",
+                        "14": "Carpeta del empleado existente en Legajos Digitales Activos o Inactivos según corresponda",
+                        "17": "Archivo Legajos y formularios Output accesible para escritura",
+                        "20": "Notificación CORRECTO enviada a hr-arg@ataway.com"
+                    }
+                }
+            ]
+        },
+        {
+            "numero": 2,
+            "titulo": "Problemas con el acceso a los recursos de entrada (Excel input y SharePoint)",
+            "casos": [
+                {
+                    "numero": 1,
+                    "titulo": "No se puede ingresar al archivo Excel D-TM-Control Monitor Profiles",
+                    "fechaEjecucion": "",
+                    "responsable": "",
+                    "excepcion": "EXC 1",
+                    "pasoFalla": 3,
+                    "pasosFinalesEjecutados": [20],
+                    "datosPrueba": {
+                        "3": "Archivo D-TM-Control Monitor Profiles.xlsx inaccesible o inexistente en SharePoint",
+                        "20": "Notificación ERROR TÉCNICO enviada a hr-arg@ataway.com"
+                    }
+                },
+                {
+                    "numero": 2,
+                    "titulo": "No existe ruta de SharePoint con datos de entrada",
+                    "fechaEjecucion": "",
+                    "responsable": "",
+                    "excepcion": "EXC 2",
+                    "pasoFalla": 11,
+                    "pasosFinalesEjecutados": [20],
+                    "datosPrueba": {
+                        "11": "Ruta de SharePoint inexistente o inaccesible",
+                        "20": "Notificación ERROR TÉCNICO enviada a hr-arg@ataway.com"
+                    }
+                }
+            ]
+        },
+        {
+            "numero": 3,
+            "titulo": "Carpeta del empleado no encontrada en SharePoint",
+            "casos": [
+                {
+                    "numero": 1,
+                    "titulo": "No se encontró la carpeta del empleado en Legajos Digitales Activos ni Inactivos (excepción de negocio: continúa con el siguiente registro)",
+                    "fechaEjecucion": "",
+                    "responsable": "",
+                    "excepcion": "EXC 3",
+                    "pasoFalla": 14,
+                    "pasosFinalesEjecutados": [18, 19, 20],
+                    "datosPrueba": {
+                        "14": "Empleado sin carpeta correspondiente en SharePoint (ni en Activos ni en Inactivos)",
+                        "18": "Se registra el estado correspondiente en el archivo Output y se continúa con el siguiente registro",
+                        "20": "Notificación CORRECTO enviada a hr-arg@ataway.com con detalle del registro no encontrado"
+                    }
+                }
+            ]
+        },
+        {
+            "numero": 4,
+            "titulo": "Problemas con el archivo Excel de salida (Output)",
+            "casos": [
+                {
+                    "numero": 1,
+                    "titulo": "No se puede ingresar al archivo Excel Legajos y formularios Output",
+                    "fechaEjecucion": "",
+                    "responsable": "",
+                    "excepcion": "EXC 4",
+                    "pasoFalla": 17,
+                    "pasosFinalesEjecutados": [20],
+                    "datosPrueba": {
+                        "17": "Archivo Legajos y formularios Output inaccesible o bloqueado",
+                        "20": "Notificación ERROR TÉCNICO enviada a hr-arg@ataway.com"
+                    }
+                }
+            ]
+        }
+    ]
+}

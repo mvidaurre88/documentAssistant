@@ -79,6 +79,8 @@ def screen_verify():
         render_pdd(st.session_state.form_data)
     elif(doc_type == "SDD"):
         render_sdd(st.session_state.form_data)
+    elif(doc_type == "TDD"):
+        render_tdd(st.session_state.form_data)
 
     col_center = st.columns([3,1,3])[1]
     with col_center:
@@ -407,6 +409,14 @@ def render_sdd(data: dict) -> dict:
         if img_bytes:
             show_img_overlay(img_bytes, key="detalle")
 
+def render_tdd(data: dict) -> dict:
+    
+    # RENDERIZO LOS CAMPOS COMUNES --------------------------------------------------------------------
+    render_common_fields(data)
+    
+    # DESCRIPCIÓN DEL BOT -----------------------------------------------------------------------------
+    field_row("Descripción del Bot", "descripcionBot", data, multiline=True, col_ratio=(1, 6.5))
+    
 # FUNCION PARA ESTANDARIZAR FILAS DE DOS CAMPOS -------------------------------------------------------
 def double_field_row(label1, key1, label2, key2, data, key_prefix="", multiline=False):
     col_left, col_right = st.columns([1, 1])
@@ -450,11 +460,6 @@ def field_row(label, key, data, col_ratio=None, multiline=False, height=None, ke
 def add_current_date(json):
     today = date.today().strftime("%d/%m/%Y")
     json["fecha"] = today
-    for field in ["modificaciones", "revision"]:
-        if field in json and isinstance(json[field], list):
-            for item in json[field]:
-                if isinstance(item, dict):
-                    item["fecha"] = today
     return json
             
 # FUNCION PARA REEMPLAZAR LOS VALORES NONE POR STRING VACIOS -------------------------------------------
@@ -473,13 +478,19 @@ def generate_modify(data):
     fecha = data.get("fecha", "")
     desarrollador = data.get("desarrollador", "")
     
-    if modificaciones == []:
-        new_version = "0.0"
-        modificaciones.append({ "version": "0.0", "fecha": fecha, "paginas": "todas", "sector": "RPA", "autor": desarrollador, "motivo": "Creación de documento"})
+    if not modificaciones:
+        new_version = "1.0"
+        motivo = "Creación de documento"
     else:
-        last_mod = modificaciones[-1]
-        new_version = str(float(last_mod.get('version', '0.0')) + 1)
-        modificaciones.append({ "version": new_version, "fecha": fecha, "paginas": "todas", "sector": "RPA", "autor": desarrollador, "motivo": "Actualización de documento"})    
+        last_version = str(modificaciones[-1].get("version", "0.0")).strip()
+        parts = last_version.split(".")
+        try:
+            major = int(parts[0]) if parts[0] else 0
+        except ValueError:
+            major = 0
+        new_version = f"{major + 1}.0"
+        motivo = "Actualización de documento"
+    modificaciones.append({ "version": new_version, "fecha": fecha, "paginas": "todas", "sector": "RPA", "autor": desarrollador, "motivo": motivo})
     
     data["version"] = new_version
     data["modificaciones"] = modificaciones
