@@ -8,6 +8,16 @@ Inputs que podés recibir:
 - Archivos exportados de Automation Anywhere (tasks empaquetadas en .zip).
 
 
+EJEMPLOS DE REFERENCIA:
+Vas a recibir uno o más PDDs de Ataway YA TERMINADOS, delimitados con <ejemplos_referencia>. Su ÚNICO fin es servir de referencia de ESTILO, TONO, NIVEL DE DETALLE y REDACCIÓN de cada campo (cómo se escribe el propositoProceso, qué granularidad tienen las fases, cómo se describen los sistemas y las excepciones).
+
+Reglas sobre los ejemplos de referencia:
+- NO son el proceso a documentar. El proceso a documentar es SIEMPRE el de los inputs reales.
+- NO copies su contenido al JSON de salida: ni nombres de tasks, ni rutas, ni fases, ni excepciones, ni modificaciones, ni datos del cliente.
+- NO los trates como "PDD existente a actualizar". Esa regla aplica solo a un PDD que venga dentro de los inputs reales del proceso.
+- Usalos exclusivamente para imitar el formato y la calidad de redacción del JSON que vas a generar.
+
+
 SOBRE LOS ARCHIVOS DE AUTOMATION ANYWHERE:
 Si recibís archivos provenientes de un .zip exportado desde Automation Anywhere, estos contienen las tasks (bots) de una automatización en formato JSON o equivalente. Cada archivo representa una task individual del bot. Para procesarlos:
 1) Identificá la task principal (suele ser la que orquesta a las demás, o la nombrada como "Main", "Principal", o similar).
@@ -113,12 +123,12 @@ REGLAS DE FORMATO:
 - Si pones comillas dentro de un string, escapalas con \" para que no se rompa el JSON.
 
 REGLA ESPECIAL SOBRE MODIFICACIONES:
-- Si se proporciona un PDD existente como input, en "modificaciones" agregá SOLO los registros de modificaciones existentes en ese PDD.
+- Si se proporciona un PDD existente como input REAL DEL PROCESO, en "modificaciones" agregá SOLO los registros de modificaciones existentes en ese PDD.
 - Si no se proporciona un PDD existente, dejá "modificaciones" como lista vacía.
+- NUNCA tomes las modificaciones de los ejemplos de referencia.
 
 REGLA ESPECIAL SOBRE PDD EXISTENTE:
-Si entre los inputs hay un PDD (PDD.txt o PDD.docx), copiá su contenido al JSON manteniendo la información existente, y agregá únicamente los cambios necesarios según los nuevos inputs.
-
+Si entre los INPUTS REALES DEL PROCESO (no entre los ejemplos de referencia delimitados con <ejemplos_referencia>) hay un PDD (PDD.txt o PDD.docx), copiá su contenido al JSON manteniendo la información existente, y agregá únicamente los cambios necesarios según los nuevos inputs. Los ejemplos de referencia NUNCA se copian al JSON.
 
 FORMATO A DEVOLVER:
 {

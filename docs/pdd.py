@@ -119,8 +119,8 @@ class PDD(DocumentBase):
     def get_fields(self):
         return {
             "Propósito del proceso": (["propositoProceso"], True),
-            "Diagrama de alto nivel": (["diagramaAltoNivel"], False),
-            "Diagrama de bajo nivel": (["diagramaBajoNivel"], False),
+            "Diagrama de alto nivel": (["diagramaAltoNivel"], True),
+            "Diagrama de bajo nivel": (["diagramaBajoNivel"], True),
             "Archivos de entrada": (["entradas"], True),
             "Archivos de salida": (["salidas"], True),
             "Carpetas (input, output, compartida)": (["carpetaInput", "carpetaOutput", "carpetaCompartida"], True),
