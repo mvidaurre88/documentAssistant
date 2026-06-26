@@ -24,8 +24,8 @@ class SDD(DocumentBase):
     def get_fields(self):
         return {
             "Propósito del proceso": (["procesoNegocioAltoNivel"], True),
-            "Diagrama de tasks": (["diagrama_pasos"], False),
-            "Diagrama a detalle": (["diagrama_detalle"], False),
+            "Diagrama de tasks": (["diagrama_pasos"], True),
+            "Diagrama a detalle": (["diagrama_detalle"], True),
             "Solución técnica de alto nivel": (["solucionTecnicaAltoNivel"], True),
             "Solución técnica detallada": (["solucionTecnicaDetallada"], True),
             "Excepciones": (["excepciones"], True),
