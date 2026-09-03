@@ -3,10 +3,12 @@ import logging, mammoth, base64, anthropic, httpx, streamlit as st
 import os
 import time
 import zipfile
+import openai
+
 from pathlib import Path
 from openpyxl import load_workbook
 from openai import OpenAI
-import openai
+from config import MODEL, API_KEY_CLAUDE, API_KEY_QWEN
 
 logger = logging.getLogger(__name__)
 
@@ -204,16 +206,16 @@ def _stream_openai(client, model, content_blocks, max_tokens, system=None):
 
 def send_to_ai(prompt: str, files: list, maxTokens: int = 4096) -> str:
 
-    model = st.secrets.get("MODEL")
+    model = MODEL
 
     if model == "QWEN":
-        key = st.secrets.get("API_KEY_QWEN")
+        key = API_KEY_QWEN
         client = OpenAI(base_url="http://192.168.1.48:8000/v1", api_key=key)
         model_name = "qwen/qwen2.5-vl-7b"
         stream_fn = _stream_openai
         maxTokens = min(maxTokens, 4096)
     elif model == "CLAUDE":
-        key = st.secrets.get("API_KEY_CLAUDE")
+        key = API_KEY_CLAUDE
         client = anthropic.Anthropic(api_key=key, timeout=900.0)
         model_name = "claude-sonnet-4-6"
         stream_fn = _stream_anthropic

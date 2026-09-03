@@ -13,6 +13,7 @@ from components.top_bar import top_bar
 from components.section_title import section_title
 from utils.AIConnector import send_to_ai
 from utils.prompt_filter import filter_prompt
+from config import ENV
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def screen_connect_ai():
     
     container = st.empty()
     with container.container():
-        env = st.secrets.get("ENV")
+        env = ENV
         top_bar(back_to="load", show_stepper=True, step=2, key="ai")
         render_loading_frame("Procesando con IA...")
         
@@ -174,8 +175,8 @@ def generate_modify(data):
     desarrollador = data.get("desarrollador", "")
     
     if not modificaciones:
-        new_version = "1.0"
-        motivo = "Creación de documento"
+        new_version = "0.0"
+        motivo = "Versión inicial"
     else:
         last_version = str(modificaciones[-1].get("version", "0.0")).strip()
         parts = last_version.split(".")
