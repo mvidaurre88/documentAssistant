@@ -1,4 +1,5 @@
 from docs.base import DocumentBase
+from docs.minuta import Minuta
 from docs.pdd import PDD
 from docs.sdd import SDD
 from docs.tdd import TDD
@@ -7,6 +8,7 @@ DOC_REGISTRY: dict[str, type[DocumentBase]] = {
     "PDD": PDD,
     "SDD": SDD,
     "TDD": TDD,
+    "MINUTA": Minuta,
 }
 
 def get_doc(doc_type: str) -> DocumentBase:

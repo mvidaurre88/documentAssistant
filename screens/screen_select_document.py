@@ -17,13 +17,14 @@ def screen_select_document():
     st.session_state.setdefault("doc_type", None)
     st.session_state.setdefault("mode", None)
 
+    # -------------------
     # BARRA DE NAVEGACION
+    # -------------------
     top_bar(title="", back_to="init", show_stepper=True, step=0)
-
 
     # DOCUMENTOS HABILITADOS
     enabled_docs = st.session_state.get("enabled_docs", [])
-    all_types = {"PDD": "📄 PDD", "SDD": "📄 SDD", "TDD": "📄 TDD"}
+    all_types = {"PDD": "📄 PDD", "SDD": "📄 SDD", "TDD": "📄 TDD", "MINUTA": "📄 MINUTA"}
     types = {all_types[d]: d for d in enabled_docs if d in all_types}
 
     if not types:

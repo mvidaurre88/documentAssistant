@@ -1,0 +1,20 @@
+# docs/minuta_data/clientes.txt
+# formato: nombre|proyecto|archivo_logo   (proyecto y logo pueden quedar vacíos por ahora)
+VW||
+METROGAS|01990|metrogas.png
+BERTOTTO||
+MELI||
+DDS|02116|drogeria-del-sud.png
+ADIUM (ex RAFFO)||
+Santista||
+FEDERACION PATRONAL||
+COFARSUR||
+LINK||
+DLS||
+Cencosud||
+ABTIO S.A.||
+CCU||
+ACON TIMBER||
+GENNEIA||
+NACION SEGUROS||
+Falabella||

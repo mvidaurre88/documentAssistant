@@ -6,6 +6,10 @@ import json5
 import logging
 import streamlit as st
 import graphviz
+import subprocess
+import shutil
+
+DOT_TIMEOUT = 30
 
 from docs import get_doc
 from utils.navigation import *
@@ -123,27 +127,39 @@ def generate_diagram_img(dot_code: str) -> bytes | None:
 
     # Por si Claude lo devuelve con \n escapados
     dot_code = dot_code.replace("\\n", "\n").strip()
-    
+
     # Limpiar posibles fences de markdown
     dot_code = dot_code.replace("```dot", "").replace("```graphviz", "").replace("```", "").strip()
 
     logger.info(f"Diagrama DOT: {len(dot_code)} caracteres")
 
-    try:
-        src = graphviz.Source(dot_code, format="png")
-        png_bytes = src.pipe(format="png")
-        logger.info(f"PNG generado ({len(png_bytes)} bytes)")
-        return png_bytes
-    except graphviz.backend.ExecutableNotFound:
-        logger.error("Graphviz no está instalado. Agregá 'graphviz' a packages.txt en Streamlit Cloud.")
+    if shutil.which("dot") is None:
+        logger.error("Graphviz no está instalado (no se encontró el ejecutable 'dot').")
         return None
-    except graphviz.backend.CalledProcessError as e:
-        logger.error(f"Error de sintaxis DOT: {e}")
+
+    try:
+        result = subprocess.run(
+            ["dot", "-Tpng"],
+            input=dot_code.encode("utf-8"),
+            capture_output=True,
+            timeout=DOT_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        logger.error(f"Graphviz superó el timeout de {DOT_TIMEOUT}s. Se omite el diagrama.")
         logger.error(f"Código recibido:\n{dot_code[:1000]}")
         return None
     except Exception as e:
         logger.error(f"Error renderizando diagrama: {e}")
         return None
+
+    if result.returncode != 0:
+        logger.error(f"Error de sintaxis DOT: {result.stderr.decode('utf-8', errors='replace')}")
+        logger.error(f"Código recibido:\n{dot_code[:1000]}")
+        return None
+
+    png_bytes = result.stdout
+    logger.info(f"PNG generado ({len(png_bytes)} bytes)")
+    return png_bytes
 
 
 def fix_encoding(text: str) -> str:
